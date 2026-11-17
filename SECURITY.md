@@ -2,9 +2,9 @@
 
 ## Supported Versions
 
-ARTEX is an autonomous penetration-testing tool. Security fixes are provided only for the latest official release line. The `main` branch is not considered a stable release and may change at any time.
+ARTEX is an autonomous penetration-testing tool. This repository has not published a release yet, so security fixes land on `main` of [Protonmatter/ARTEX](https://github.com/Protonmatter/ARTEX).
 
-Only the latest release line receives security fixes. Older releases do not receive fixes; please upgrade to the latest release.
+Once a release line is published, security fixes are provided for the latest release. Older releases do not receive fixes.
 
 Notes:
 - Please upgrade to the latest release before reporting a vulnerability.
@@ -14,7 +14,7 @@ Notes:
 
 **Do not open a public issue for a security vulnerability.**
 
-Report through **GitHub Security Advisories**: **Security** tab → **Report a vulnerability** in the `BaaRai/ARTEX` repository. This is the only reporting channel.
+Report through **GitHub Security Advisories**: **Security** tab → **Report a vulnerability** in the [Protonmatter/ARTEX](https://github.com/Protonmatter/ARTEX) repository. This is the only reporting channel.
 
 Please include:
 - A description of the vulnerability and its expected impact.

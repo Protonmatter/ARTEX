@@ -6,15 +6,14 @@
 
 **Autonomous penetration testing that keeps its receipts.**
 
-(upstream: [Autumn-27/ARTEX](https://github.com/Autumn-27), AGPL-3.0)
+[Protonmatter/ARTEX](https://github.com/Protonmatter/ARTEX) · AGPL-3.0
 
 Self-hosted multi-agent offensive security. A planner explores, workers run real tools,
 and every finding stays bound to the assets and HTTP traffic that prove it.
 
-[![Release](https://img.shields.io/github/v/release/BaaRai/ARTEX?label=release&color=6b34db)](https://github.com/BaaRai/ARTEX/releases)
-[![License](https://img.shields.io/github/license/BaaRai/ARTEX?color=6b34db)](LICENSE)
-[![CI](https://github.com/BaaRai/ARTEX/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/BaaRai/ARTEX/actions/workflows/ci.yml)
-[![Go](https://img.shields.io/github/go-mod/go-version/BaaRai/ARTEX?color=6b34db)](go.mod)
+[![License](https://img.shields.io/github/license/Protonmatter/ARTEX?color=6b34db)](LICENSE)
+[![CI](https://github.com/Protonmatter/ARTEX/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Protonmatter/ARTEX/actions/workflows/ci.yml)
+[![Go](https://img.shields.io/github/go-mod/go-version/Protonmatter/ARTEX?color=6b34db)](go.mod)
 
 [Quick start](#quick-start) · [Screenshots](#screenshots) · [How it works](#how-it-works) · [Install](#installation) · [Configuration](#configuration) · [Security](SECURITY.md)
 
@@ -44,7 +43,7 @@ justify it, and every autonomous action passes through scope rules, approval gat
 ## Quick start
 
 ```bash
-git clone https://github.com/BaaRai/ARTEX.git
+git clone https://github.com/Protonmatter/ARTEX.git
 cd ARTEX
 cp .env.example .env            # set POSTGRES_PASSWORD (and optionally an LLM key)
 docker compose up -d --build    # builds from this checkout, starts PostgreSQL
@@ -230,7 +229,8 @@ worker remains confined to the intent it claimed.
 - **Budgets**: `ARTEX_TASK_BUDGET_TOKENS` / `ARTEX_TASK_BUDGET_TURNS` cap a whole task (planner and
   workers); `ARTEX_INTENT_BUDGET_TOKENS` / `ARTEX_INTENT_BUDGET_TURNS` cap one worker run. Near the
   limit the task enters a forced wrap-up; a worker is not started when the remaining budget cannot
-  cover it. Budgets are in memory: a restart starts fresh.
+  cover it. After a restart, tokens and turns already recorded for the task are restored
+  from the usage ledger. The per-worker cost estimate starts over.
 - **Noise governor**: `ARTEX_NOISE_PROFILE=quiet|balanced|aggressive` paces requests ARTEX sends to
   targets (per-host rate, burst, in-flight limit, jitter, backoff on 429/503, short GET caching).
   With a profile set, agents also receive low-and-slow flags for the installed scanners.
@@ -280,7 +280,7 @@ worker remains confined to the intent it claimed.
 ### Option 1: one-click install script (recommended)
 
 ```bash
-git clone https://github.com/BaaRai/ARTEX.git
+git clone https://github.com/Protonmatter/ARTEX.git
 cd ARTEX
 ./install.sh
 ```
@@ -299,7 +299,7 @@ first-run claim), or keep loopback and use a reverse proxy or SSH tunnel.
 ### Option 2: Docker Compose (manual)
 
 ```bash
-git clone https://github.com/BaaRai/ARTEX.git
+git clone https://github.com/Protonmatter/ARTEX.git
 cd ARTEX
 cp .env.example .env            # set POSTGRES_PASSWORD, optionally ANTHROPIC_API_KEY
 docker compose up -d --build
@@ -313,10 +313,14 @@ For remote MCP you can choose `http` (Streamable HTTP) or `sse` (legacy SSE) in 
 Legacy SSE servers usually establish the event stream with `GET /sse` and receive JSON-RPC over
 `/message?sessionId=...`; configure the URL as `/sse` and send `Authorization: Bearer <token>`.
 
-### Option 3: prebuilt binaries (Releases)
+### Option 3: prebuilt binaries
 
-Download the zip for your platform from [Releases](https://github.com/BaaRai/ARTEX/releases). It
-contains `artex`, `start.sh` (`start.bat` on Windows), `skills/` and `config.example.json`:
+[Protonmatter/ARTEX](https://github.com/Protonmatter/ARTEX) does not publish prebuilt archives yet.
+Install from this checkout with option 1, 2, or 4.
+
+When a release is published, it will be listed on
+[Releases](https://github.com/Protonmatter/ARTEX/releases) and will contain `artex`, `start.sh`
+(`start.bat` on Windows), `skills/` and `config.example.json`:
 
 ```bash
 cp config.example.json config.json   # fill in the database connection
@@ -328,14 +332,13 @@ after a backoff. To keep it in the background: `nohup ./start.sh >artex.log 2>&1
 
 #### Verifying a release
 
-Each release attaches `SHA256SUMS` and a CycloneDX SBOM, `artex-<tag>.cdx.json` (Go modules in the
-linux/amd64 binary, the frontend `package-lock.json`, `go.mod`/`go.sum`), next to the zips. The zips
-also carry a GitHub build provenance attestation. Releases published before this was added have
-neither.
+A published release attaches `SHA256SUMS` and a CycloneDX SBOM, `artex-<tag>.cdx.json` (Go modules
+in the linux/amd64 binary, the frontend `package-lock.json`, `go.mod`/`go.sum`), next to the zips.
+The zips also carry a GitHub build provenance attestation.
 
 ```bash
 sha256sum -c SHA256SUMS                           # add --ignore-missing if you downloaded only some zips
-gh attestation verify <zip> --repo BaaRai/ARTEX   # built by this repository's release workflow
+gh attestation verify <zip> --repo Protonmatter/ARTEX
 ```
 
 ### Option 4: build the single binary from source
@@ -532,11 +535,13 @@ Daily cron example (03:20, operator crontab):
 > in its own transaction. Restarting the new binary is the upgrade. Back up `./data`, `keys/` and
 > the database before upgrading.
 
-**Update banner (opt-in, off by default)**: start ARTEX with `ARTEX_UPDATE_CHECK=1` to ask the
-public GitHub releases API for the latest tag, at most once per 24 hours (cached in memory; a
-failed check is not retried within that window). When the release is newer, the web UI shows a
-dismissible strip linking to Releases. The request sends only `User-Agent: artex-update-check`.
-Unset, ARTEX makes no update request and shows no banner.
+**Update banner (opt-in, off by default)**: start ARTEX with `ARTEX_UPDATE_CHECK=1` to ask
+[Protonmatter/ARTEX](https://github.com/Protonmatter/ARTEX) for its latest release tag, at most
+once per 24 hours (cached in memory; a failed check is not retried within that window). When the
+release is newer, the web UI shows a dismissible strip linking to
+[Releases](https://github.com/Protonmatter/ARTEX/releases). The request sends only
+`User-Agent: artex-update-check`. Unset, ARTEX makes no update request and shows no banner.
+No release is published yet, so the banner stays empty until one is.
 
 #### Upgrading from a clone made before 2026-10-23
 
@@ -576,7 +581,8 @@ docker image prune -f            # optional
 
 #### Option 3: prebuilt binaries
 
-Download the new zip, stop the old process, overwrite `artex` and `skills/` (keep `config.json` and
+When a release zip is published on [Releases](https://github.com/Protonmatter/ARTEX/releases),
+stop the old process, overwrite `artex` and `skills/` (keep `config.json` and
 `data/`), then restart:
 
 ```bash
@@ -690,14 +696,15 @@ Operational security properties:
 - **Login protection**: 10 attempts per minute per client IP, with `ARTEX_TRUSTED_PROXIES` for
   correct client attribution behind a reverse proxy.
 - **Untrusted tool output**: framed as data for every agent by default (prompt-injection boundary).
-- **Release integrity**: SHA-256 sums, CycloneDX SBOM and GitHub build provenance attestations for
-  release archives.
+- **Release integrity**: a published release archive carries SHA-256 sums, a CycloneDX SBOM, and a
+  GitHub build provenance attestation. None is published yet.
 
 ---
 
-## About this fork
+## Repository
 
-This repository is the English translation and continuation of ARTEX, originally by [Autumn-27](https://github.com/Autumn-27). The upstream repository is no longer public, so the link points to the author profile. Changes in this fork are tracked in [CHANGELOG.md](CHANGELOG.md), under the same AGPL-3.0 license.
+The source for this project is [Protonmatter/ARTEX](https://github.com/Protonmatter/ARTEX).
+Changes are tracked in [CHANGELOG.md](CHANGELOG.md). The license is AGPL-3.0.
 
 ---
 

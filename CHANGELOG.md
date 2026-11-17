@@ -22,7 +22,7 @@ All notable changes to this project are documented in this file. The format is b
 - **Intercept risk score and batch approval**: a deterministic risk score (low, medium, high) is shown on each pending approval, and up to 100 pending decisions can be settled in one call, each through the existing single-decision path (#232).
 - **`ask_operator` target warning**: a request whose question names a host or URL outside the goal targets is tagged as containing target-derived text (#197).
 - **Opt-in update banner**: `ARTEX_UPDATE_CHECK` makes the backend check the latest GitHub release at most once per 24 hours and the UI show a banner; off by default (#202).
-- **Release provenance**: release archives carry GitHub build provenance attestations and a CycloneDX SBOM (`gh attestation verify <zip> --repo BaaRai/ARTEX`); release notes are the matching `CHANGELOG.md` section (#219, #201).
+- **Release provenance**: release archives carry GitHub build provenance attestations and a CycloneDX SBOM (`gh attestation verify <zip> --repo Protonmatter/ARTEX`); release notes are the matching `CHANGELOG.md` section (#219, #201).
 
 ### Changed
 
@@ -31,6 +31,21 @@ All notable changes to this project are documented in this file. The format is b
 - **Coverage graph performance**: the coverage graph batches its connector lookups (three queries instead of one per root and per company) and adds the partial index `idx_ts_icp`; on a task of about 3,000 assets the p50 dropped from 126 ms to 27 ms and the queries per call from 221 to 3 (#230).
 
 ### Fixed
+
+- **Task detail poll**: the task detail response looks up that task's archive blocker instead of aggregating every task relation.
+- **Browser extension capture**: DevTools response headers are accepted both as an array and as an object, so capture is queued again.
+- **Posture check**: a transport or HTTP failure is graded invalid, and a first-person hedged refusal is graded as a refusal.
+- **Skill visibility**: switching a skill off records `enabled=false`. The next start does not turn that skill back on. Deleting the skill from disk still removes the rows.
+- **Activity durability**: a step that could not be stored is queued and the live stream is told it was not stored. A later start writes the queue into the activity log.
+- **Sessions**: a failed password lookup does not print a setup token. Changing the password rejects tokens issued before that second. Tokens stay valid when no password-epoch setting exists.
+- **Budgets**: tokens and turns already recorded for a task are restored from the usage ledger after a restart.
+- **Coverage flag**: a failed read leaves coverage tools available.
+- **Shutdown**: the process waits for task goroutines, then closes HTTP, and exits non-zero if either step fails.
+- **Request bodies**: JSON decoded by the API is limited to 32 MiB. Handlers that already set a smaller limit keep it.
+- **Login eviction**: an address that is still blocked is kept when the limiter is full.
+- **Circuit breaker**: profile state is written by one worker, and the latest state for each profile is the one stored.
+- **Traffic passthrough**: a host that could not be intercepted is tunneled for one minute, then interception is tried again.
+- **Event streams**: a same-origin stream uses the session cookie. The dev connection to port 8787 still sends the query token.
 
 - **Auto-scope hygiene**: auto `task_scope` rows count for coverage and untested assets only under a declared root, and direct coverage counts anchored assets through fact anchors only; the scope is described as "coverage scope, not enforced" (#196).
 - **Enrich HTTP probe**: it now dials through `intercept.PinnedDialer`, so the target gate applies and a probe without a target scope is refused (#198).
@@ -199,7 +214,7 @@ Ollama support, a setup token for the first-run claim, secret scrubbing for chil
 
 ## [0.4.0] - 2026-10-23
 
-First release of this fork. The engine underneath is still upstream's, but this tree carries a long stretch of operational work on top of it: a recon toolbox and skills, findings discipline, cost accounting, and container packaging.
+First packaged release of this repository. It carries a recon toolbox and skills, findings discipline, cost accounting, and container packaging.
 
 ### Added
 
@@ -329,7 +344,7 @@ First release of this fork. The engine underneath is still upstream's, but this 
 
 ### Contributors
 
-- [@Autumn-27](https://github.com/Autumn-27)
+- Autumn-27
 
 ## [0.3.14] - 2026-09-24
 
@@ -355,7 +370,7 @@ First release of this fork. The engine underneath is still upstream's, but this 
 
 ### Contributors
 
-- [@Autumn-27](https://github.com/Autumn-27)
+- Autumn-27
 
 ## [0.3.13] - 2026-09-19
 
@@ -395,7 +410,7 @@ First release of this fork. The engine underneath is still upstream's, but this 
 
 ### Contributors
 
-- [@Autumn-27](https://github.com/Autumn-27)
+- Autumn-27
 
 ## [0.3.12] - 2026-09-17
 
@@ -464,7 +479,7 @@ First release of this fork. The engine underneath is still upstream's, but this 
 
 ### Contributors
 
-- [@Autumn-27](https://github.com/Autumn-27)
+- Autumn-27
 - [@RuoJi6](https://github.com/RuoJi6)
 - [@dingpotian](https://github.com/dingpotian)
 
@@ -520,7 +535,7 @@ First release of this fork. The engine underneath is still upstream's, but this 
 
 ### Contributors
 
-- [@Autumn-27](https://github.com/Autumn-27)
+- Autumn-27
 - [@RuoJi6](https://github.com/RuoJi6)
 
 ## [0.3.10] - 2026-09-13
@@ -560,7 +575,7 @@ First release of this fork. The engine underneath is still upstream's, but this 
 
 ### Contributors
 
-- [@Autumn-27](https://github.com/Autumn-27)
+- Autumn-27
 
 ## [0.3.9] - 2026-09-11
 
@@ -656,7 +671,7 @@ First release of this fork. The engine underneath is still upstream's, but this 
 
 ### Contributors
 
-- [@Autumn-27](https://github.com/Autumn-27)
+- Autumn-27
 - [@RuoJi6](https://github.com/RuoJi6)
 
 ## [0.3.8] - 2026-09-09
@@ -729,7 +744,7 @@ First release of this fork. The engine underneath is still upstream's, but this 
 
 ### Contributors
 
-- [@Autumn-27](https://github.com/Autumn-27)
+- Autumn-27
 
 ## [0.3.7] - 2026-08-31
 
@@ -791,7 +806,7 @@ First release of this fork. The engine underneath is still upstream's, but this 
 
 ### Contributors
 
-- [@Autumn-27](https://github.com/Autumn-27)
+- Autumn-27
 - [@neouks](https://github.com/neouks)
 - [@begininvoke](https://github.com/begininvoke)
 
@@ -824,7 +839,7 @@ First release of this fork. The engine underneath is still upstream's, but this 
 
 ### Contributors
 
-- [@Autumn-27](https://github.com/Autumn-27)
+- Autumn-27
 
 ## [0.3.5] - 2026-08-25
 
@@ -872,7 +887,7 @@ First release of this fork. The engine underneath is still upstream's, but this 
 
 ### Contributors
 
-- [@Autumn-27](https://github.com/Autumn-27)
+- Autumn-27
 - [@neouks](https://github.com/neouks)
 
 ## [0.3.4] - 2026-08-24
@@ -1111,20 +1126,20 @@ First release of this fork. The engine underneath is still upstream's, but this 
 
 ### Contributors
 
-- [@Autumn-27](https://github.com/Autumn-27)
+- Autumn-27
 - [@neouks](https://github.com/neouks)
 
-[Unreleased]: https://github.com/BaaRai/ARTEX/compare/v0.6.0...HEAD
-[0.6.0]: https://github.com/BaaRai/ARTEX/compare/v0.5.1...v0.6.0
-[0.5.1]: https://github.com/BaaRai/ARTEX/compare/v0.5.0...v0.5.1
-[0.5.0]: https://github.com/BaaRai/ARTEX/compare/v0.4.0...v0.5.0
-[0.4.0]: https://github.com/BaaRai/ARTEX/compare/v0.3.15...v0.4.0
-[0.3.10]: https://github.com/Autumn-27/ARTEX/compare/v0.3.9...v0.3.10
-[0.3.9]: https://github.com/Autumn-27/ARTEX/compare/v0.3.8...v0.3.9
-[0.3.8]: https://github.com/Autumn-27/ARTEX/compare/v0.3.7...v0.3.8
-[0.3.7]: https://github.com/Autumn-27/ARTEX/compare/v0.3.6...v0.3.7
-[0.3.6]: https://github.com/Autumn-27/ARTEX/compare/v0.3.5...v0.3.6
-[0.3.5]: https://github.com/Autumn-27/ARTEX/compare/v0.3.4...v0.3.5
-[0.3.4]: https://github.com/Autumn-27/ARTEX/compare/v0.3.3...v0.3.4
-[0.3.3]: https://github.com/Autumn-27/ARTEX/compare/v0.3.2...v0.3.3
-[0.3.2]: https://github.com/Autumn-27/ARTEX/compare/v0.3.1...v0.3.2
+[Unreleased]: https://github.com/Protonmatter/ARTEX/commits/main
+[0.6.0]: https://github.com/Protonmatter/ARTEX
+[0.5.1]: https://github.com/Protonmatter/ARTEX
+[0.5.0]: https://github.com/Protonmatter/ARTEX
+[0.4.0]: https://github.com/Protonmatter/ARTEX
+[0.3.10]: https://github.com/Protonmatter/ARTEX
+[0.3.9]: https://github.com/Protonmatter/ARTEX
+[0.3.8]: https://github.com/Protonmatter/ARTEX
+[0.3.7]: https://github.com/Protonmatter/ARTEX
+[0.3.6]: https://github.com/Protonmatter/ARTEX
+[0.3.5]: https://github.com/Protonmatter/ARTEX
+[0.3.4]: https://github.com/Protonmatter/ARTEX
+[0.3.3]: https://github.com/Protonmatter/ARTEX
+[0.3.2]: https://github.com/Protonmatter/ARTEX
