@@ -390,7 +390,11 @@ var builtinSkillVisibility = map[string][]string{
 
 // seedBuiltinSkillVisibility binds the shipped built-in skills to their default
 // agents. Insert-if-absent (ON CONFLICT DO NOTHING) so a user's later toggle-off is
-// never resurrected on restart — matches the browser-MCP / intercept-rule seed policy.
+// never resurrected on restart. That holds only while toggle-off keeps the row:
+// ToggleSkillVisibility and SetAgentSkillVisibility write enabled=false rather
+// than DELETE, so an explicit off is distinguishable from never seeded.
+// DeleteSkillVisibility still removes rows, which lets a re-installed skill be
+// seeded again.
 func (d *DB) seedBuiltinSkillVisibility() error {
 	for skillName, agentKeys := range builtinSkillVisibility {
 		for _, key := range agentKeys {
