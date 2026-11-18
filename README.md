@@ -61,6 +61,31 @@ docker compose logs artex | grep "Setup token"
 
 ---
 
+## Multi-provider workers
+
+In **System → LLM**, configure the profiles you want to use. In **System → Settings**,
+set the concurrent worker count to at least **2** before starting a task (the count
+applies to subsequently started tasks). In **System → Agents → Worker**, leave the
+model set to follow the task; a fixed Worker model takes precedence over rotation.
+
+When creating a task, select both profiles in **LLM config chain**, arrange their
+order, and enable **Enable multi-LLM worker rotation**. For an existing task, open
+its LLM config control, change the switch or profile order, and save.
+
+Rotation assigns successive worker intents A, B, A, B, regardless of completion
+order. Separate intents can run concurrently on different providers; each intent
+keeps its selected provider unless it fails over. Planner and other unbound roles
+continue using the task's current profile. Turning rotation off restores ordered
+task-level failover. An excluded provider is skipped, so an intent pinned to an
+exhausted profile falls back to the task's current profile instead of retrying it;
+rotation keeps cycling the whole list and does not rebalance around a dead provider.
+Saving the chain resets their failure state. Changes do not interrupt in-flight
+calls. The rotation cursor starts again after a server restart and saving the chain
+does not reset it; the profile order and switch remain persisted.
+
+The task creation and `PUT /api/tasks/{id}/llm` APIs accept `llm_rotate: true` alongside
+the ordered `llm_profile_ids`. Omitting `llm_rotate` on an update preserves its value.
+
 ## Screenshots
 
 | Tasks | Findings |
@@ -229,8 +254,10 @@ worker remains confined to the intent it claimed.
 - **Budgets**: `ARTEX_TASK_BUDGET_TOKENS` / `ARTEX_TASK_BUDGET_TURNS` cap a whole task (planner and
   workers); `ARTEX_INTENT_BUDGET_TOKENS` / `ARTEX_INTENT_BUDGET_TURNS` cap one worker run. Near the
   limit the task enters a forced wrap-up; a worker is not started when the remaining budget cannot
-  cover it. After a restart, tokens and turns already recorded for the task are restored
-  from the usage ledger. The per-worker cost estimate starts over.
+  cover it. Spend already in `llm_usage` is restored after a restart. A task that is already inside
+  the wrap-up reserve only has that reserve left, so the revived run wraps up instead of starting
+  another worker. The per-worker cost estimate starts again from the defaults (50,000 tokens and
+  10 turns) until a worker finishes in this process.
 - **Noise governor**: `ARTEX_NOISE_PROFILE=quiet|balanced|aggressive` paces requests ARTEX sends to
   targets (per-host rate, burst, in-flight limit, jitter, backoff on 429/503, short GET caching).
   With a profile set, agents also receive low-and-slow flags for the installed scanners.
@@ -433,7 +460,13 @@ workers, else 50,000 tokens and 10 turns). Near the wrap-up reserve (the larger 
 tokens, and 2 turns) the task enters a forced wrap-up: the planner writes a summary and final goal
 judgment, and workers may only write back. The task then ends `done` if its goals are met, else
 `timeout`. Practical floor: below 50,000 tokens no worker starts; 50,000-70,000 typically gives one
-worker then wrap-up; pick well above 70,000 for real exploration.
+worker then wrap-up; pick well above 70,000 for real exploration. Planner, worker, judge, and
+compactor rows in `llm_usage` are counted back into the cap when a ledger is created, including
+after a restart and after a revived run drops its ledger. A restored task already inside the
+wrap-up reserve does not get another worker: only that reserve remains, and the run wraps up.
+Chat, goal decomposition, and side questions are stored on the same task and are not counted.
+The per-worker average is not restored (usage rows have no run boundary), so the estimate starts
+from the defaults until a worker finishes in this process.
 
 **Common flags**: `./start.sh -addr :8787 -proxy :8788` (`-addr` frontend/API, `-proxy` traffic
 recording proxy).
@@ -454,6 +487,10 @@ server {
     # ssl_certificate / ssl_certificate_key ...
 
     location / {
+        # 512 MiB combined file limit plus 1 MiB of multipart metadata.
+        client_max_body_size 513m;
+        proxy_request_buffering off;
+
         proxy_pass http://127.0.0.1:8787;
         proxy_set_header Host $host;
         proxy_set_header X-Forwarded-Proto $scheme;
@@ -513,7 +550,8 @@ gunzip -c backups/artex-db-<timestamp>.sql.gz | docker compose exec -T postgres 
 ```
 
 Stored secrets (LLM API keys and proxies, MCP env, task credentials, notification channel config,
-Brave/Tavily search keys, web search and global proxies, the execution spec of custom tools) are
+Brave/Tavily search keys, web search and global proxies, the execution spec of custom tools, the
+capture-proxy rewrite rules) are
 encrypted in the database with the key in `keys/secret.key` (generated at first start, mode 0600,
 next to `jwt.key`). **A database backup without that key cannot restore those secrets**: back up
 `keys/` with the dump, separately. Deployments without a persistent disk set
@@ -688,7 +726,8 @@ Please report vulnerabilities privately through GitHub Security Advisories; see
 Operational security properties:
 
 - **Secrets at rest**: LLM keys/proxies, MCP environment, task credentials, notification config,
-  search keys, proxies, custom-tool execution specs and traffic evidence snapshots are encrypted
+  search keys, proxies, custom-tool execution specs, capture-proxy rewrite rules and traffic
+  evidence snapshots are encrypted
   with AES-256-GCM using `keys/secret.key` (or `ARTEX_SECRET_KEY`). ARTEX refuses to start when
   encrypted data exists and no usable key is available.
 - **First-run claim**: `/setup` requires a one-time token printed at startup; the UI binds to

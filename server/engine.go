@@ -163,7 +163,7 @@ type Engine struct {
 
 type taskRuntime struct {
 	ctx    context.Context
-	cancel context.CancelFunc
+	cancel context.CancelCauseFunc
 	wg     sync.WaitGroup
 }
 
@@ -237,7 +237,7 @@ func (e *Engine) registerTaskRoutines(parent context.Context, taskID string, cou
 	}
 	rt := e.runtimes[taskID]
 	if rt == nil {
-		ctx, cancel := context.WithCancel(parent)
+		ctx, cancel := context.WithCancelCause(parent)
 		rt = &taskRuntime{ctx: ctx, cancel: cancel}
 		e.runtimes[taskID] = rt
 	}
@@ -252,10 +252,13 @@ func runTaskRoutine(rt *taskRuntime, fn func(context.Context)) {
 	}()
 }
 
-// Wait blocks until the task goroutines registered at the moment of the call
-// have finished, or until ctx ends. It refuses new registrations first so Add
-// cannot race Wait. Goroutines that were already running are cancelled with
-// their task context.
+// Wait blocks until the task goroutines registered at the moment of the call,
+// and every admitted task operation, have finished, or until ctx ends. It
+// refuses new registrations and new beginTaskOperation calls first. Goroutines
+// that were already running are cancelled with AbortShutdown. That cancel does
+// not write a terminal task status, and an in-flight intent claim stays running
+// so the next start can reset it to open. Detached chat runs are not in a task
+// WaitGroup; they are counted in inflight and Wait stays until they return.
 func (e *Engine) Wait(ctx context.Context) error {
 	if e == nil {
 		return nil
@@ -268,24 +271,40 @@ func (e *Engine) Wait(ctx context.Context) error {
 			continue
 		}
 		if rt.cancel != nil {
-			rt.cancel()
+			rt.cancel(agent.AbortShutdown)
 		}
 		groups = append(groups, &rt.wg)
 	}
 	e.runtimeMu.Unlock()
 	for _, wg := range groups {
-		done := make(chan struct{})
-		go func(wg *sync.WaitGroup) {
-			wg.Wait()
-			close(done)
-		}(wg)
+		if err := waitGroup(ctx, wg); err != nil {
+			return err
+		}
+	}
+	for e.inflightTotal() > 0 {
+		timer := time.NewTimer(20 * time.Millisecond)
 		select {
-		case <-done:
 		case <-ctx.Done():
+			timer.Stop()
 			return ctx.Err()
+		case <-timer.C:
 		}
 	}
 	return nil
+}
+
+func waitGroup(ctx context.Context, wg *sync.WaitGroup) error {
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 // StopTask permanently stops every long-lived goroutine and removes all Engine
@@ -300,7 +319,7 @@ func (e *Engine) StopTask(taskID string) {
 	e.runtimeMu.Lock()
 	rt := e.runtimes[taskID]
 	if rt != nil {
-		rt.cancel()
+		rt.cancel(agent.AbortTaskDeleted)
 	}
 	e.runtimeMu.Unlock()
 	if rt != nil {
@@ -1170,10 +1189,8 @@ func (e *Engine) runIntent(ctx context.Context, t *Task, name string, worker *ag
 	// Per-intent LLM rotation (#85): each claimed worker intent runs on the
 	// next chain head. The pin travels through the run context into the
 	// provider resolver; non-worker roles and failover keep the active head.
-	if t.LLMRotate {
-		if head, ok := t.nextRotatedProfile(); ok {
-			ctx = withLLMProfilePin(ctx, head)
-		}
+	if head, ok := t.nextRotatedProfile(); ok {
+		ctx = withLLMProfilePin(ctx, head)
 	}
 	hasChatMessage := message != ""
 	e.stampFirstRun(t) // first real execution → stamp first_run_at + compute the deadline (only for tasks with a timeout)
@@ -1329,6 +1346,13 @@ func (e *Engine) runIntent(ctx context.Context, t *Task, name string, worker *ag
 		e.touch(t.ID)
 		return true
 	}
+	// Process shutdown cancels the task context. Leave the claim running: AbortShutdown
+	// says restart resets leftover running intents to open. Settling done or blocked
+	// here would make that reset miss the intent, so the task would resume without it.
+	if ectx.Err() != nil && errors.Is(context.Cause(ectx), agent.AbortShutdown) {
+		log.Printf("[worker %s] task %s intent #%d shutdown: leaving the claim running", name, t.ID, intent.ID)
+		return true
+	}
 	// killed by the planner: mark stopped (don't write back results, don't auto-reclaim).
 	if killed {
 		if err := t.Store.SettleIntentClaim(intent.ID, token, "stopped"); err != nil {
@@ -1387,7 +1411,7 @@ func (e *Engine) runIntent(ctx context.Context, t *Task, name string, worker *ag
 // be started; the intent is left untouched in that case.
 func (e *Engine) runDetachedIntent(ctx context.Context, t *Task, intentID int64, requestID, message, agentMessage string) error {
 	if !e.beginTaskOperation(t.ID) {
-		return fmt.Errorf("task is being deleted")
+		return fmt.Errorf("task is not accepting work")
 	}
 	release := true
 	defer func() {

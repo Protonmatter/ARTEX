@@ -92,9 +92,9 @@ function truncate(s) {
 
 async function queueExchange(info, response) {
   const respHeaders = {};
-  // CDP hands back response.headers as a plain object, not an array of
-  // {name,value} records. Iterating that object with for...of throws, and
-  // then no exchange is queued. Accept both shapes.
+  // CDP hands back response.headers as a plain object (dict), not an array of
+  // {name,value} records; iterating it with for...of throws "object is not
+  // iterable" and no exchange is ever queued. Accept both shapes.
   const rawHeaders = response.headers || {};
   if (Array.isArray(rawHeaders)) {
     for (const h of rawHeaders) {

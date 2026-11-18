@@ -70,21 +70,21 @@ func FindingsMarkdown(fs []*db.DBFinding, generatedAt time.Time) string {
 			fmt.Fprintf(&b, "- **Class**: %s\n", f.VulnClass)
 		}
 		fmt.Fprintf(&b, "- **Status**: %s\n", nz(f.Status, "pending"))
+		fmt.Fprintf(&b, "- **Report stage**: %s\n", nz(f.ReportState, "none"))
 		if desc := strings.TrimSpace(f.TaskDescription); desc != "" {
 			fmt.Fprintf(&b, "- **Task**: %s\n", desc)
 		}
-		fmt.Fprintf(&b, "- **Found at**: %s\n\n", f.CreatedAt.Format("2006-01-02 15:04:05"))
+		fmt.Fprintf(&b, "- **Found at**: %s\n", f.CreatedAt.Format("2006-01-02 15:04:05"))
+		q := qualityFromDBFinding(f)
+		b.WriteString(qualityBullets(q, false))
 		if s := strings.TrimSpace(f.Summary); s != "" {
 			fmt.Fprintf(&b, "%s\n\n", s)
 		}
 		if e := strings.TrimSpace(f.Evidence); e != "" {
 			fmt.Fprintf(&b, "**Evidence:**\n\n```\n%s\n```\n\n", e)
 		}
-		if rep := strings.TrimSpace(f.Report); rep != "" {
-			b.WriteString("**Detailed report:**\n\n")
-			b.WriteString(rep)
-			b.WriteString("\n\n")
-		}
+		b.WriteString(qualityNarrative(q))
+		b.WriteString(detailedReportFull(f.Report, "**Detailed report:**"))
 		b.WriteString(findingTrafficMarkdown(f, false))
 		b.WriteString("---\n\n")
 	}
@@ -100,22 +100,22 @@ func SingleFindingMarkdown(f *db.DBFinding, generatedAt time.Time) string {
 	}
 	fmt.Fprintf(&b, "- **Severity**: %s\n", nz(f.Severity, "info"))
 	fmt.Fprintf(&b, "- **Status**: %s\n", nz(f.Status, "pending"))
+	fmt.Fprintf(&b, "- **Report stage**: %s\n", nz(f.ReportState, "none"))
 	if desc := strings.TrimSpace(f.TaskDescription); desc != "" {
 		fmt.Fprintf(&b, "- **Task**: %s\n", desc)
 	}
 	fmt.Fprintf(&b, "- **Found at**: %s\n", f.CreatedAt.Format("2006-01-02 15:04:05"))
-	fmt.Fprintf(&b, "- **Generated at**: %s\n\n", generatedAt.Format("2006-01-02 15:04:05"))
+	fmt.Fprintf(&b, "- **Generated at**: %s\n", generatedAt.Format("2006-01-02 15:04:05"))
+	q := qualityFromDBFinding(f)
+	b.WriteString(qualityBullets(q, false))
 	if s := strings.TrimSpace(f.Summary); s != "" {
 		fmt.Fprintf(&b, "## Summary\n\n%s\n\n", s)
 	}
 	if e := strings.TrimSpace(f.Evidence); e != "" {
 		fmt.Fprintf(&b, "## Evidence\n\n```\n%s\n```\n\n", e)
 	}
-	if rep := strings.TrimSpace(f.Report); rep != "" {
-		b.WriteString("## Detailed Report\n\n")
-		b.WriteString(rep)
-		b.WriteString("\n")
-	}
+	b.WriteString(qualityNarrative(q))
+	b.WriteString(detailedReportFull(f.Report, "## Detailed Report"))
 	b.WriteString(findingTrafficMarkdown(f, true))
 	return b.String()
 }
@@ -150,7 +150,7 @@ func FindingsCSV(fs []*db.DBFinding) []byte {
 	var buf bytes.Buffer
 	buf.WriteString("\xEF\xBB\xBF") // UTF-8 BOM
 	w := csv.NewWriter(&buf)
-	_ = w.Write([]string{"ID", "Name", "Class", "Severity", "Status", "Task", "Found At", "Summary", "Traffic Evidence Count", "Traffic Evidence IDs"})
+	_ = w.Write([]string{"ID", "Name", "Class", "Severity", "Status", "Report Stage", "Task", "Found At", "Summary", "Traffic Evidence Count", "Traffic Evidence IDs"})
 	for _, f := range items {
 		_ = w.Write([]string{
 			fmt.Sprintf("%d", f.ID),
@@ -158,6 +158,7 @@ func FindingsCSV(fs []*db.DBFinding) []byte {
 			f.VulnClass,
 			nz(f.Severity, "info"),
 			nz(f.Status, "pending"),
+			nz(f.ReportState, "none"),
 			f.TaskDescription,
 			f.CreatedAt.Format("2006-01-02 15:04:05"),
 			strings.TrimSpace(f.Summary),
@@ -177,16 +178,14 @@ func findingTrafficIDs(f *db.DBFinding) string {
 }
 
 func findingTrafficMarkdown(f *db.DBFinding, attachments bool) string {
-	stale := f.Report != "" && f.EvidenceVersion != f.ReportEvidenceVersion
+	stale := reportStale(f.Report, f.EvidenceVersion, f.ReportEvidenceVersion)
 	if len(f.TrafficBindings) == 0 && !stale {
 		return ""
 	}
 	var out strings.Builder
 	out.WriteString("\n## Related Traffic Evidence\n\n")
 	fmt.Fprintf(&out, "Evidence version: %d; bindings: %d.\n\n", f.EvidenceVersion, len(f.TrafficBindings))
-	if stale {
-		out.WriteString("The evidence has changed; the detailed report needs updating.\n\n")
-	}
+	out.WriteString(staleReportNotice(stale))
 	for i, b := range f.TrafficBindings {
 		fmt.Fprintf(&out, "%d. **Evidence #%d · %s** — `%s %s`, status %d\n", i+1, b.ID, b.Role, b.Snapshot.Method, strings.ReplaceAll(b.Snapshot.URL, "`", "%60"), b.Snapshot.Status)
 		if b.Note != "" {

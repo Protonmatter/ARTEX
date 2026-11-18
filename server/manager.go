@@ -24,6 +24,7 @@ import (
 	"github.com/Autumn-27/artex/guard"
 	"github.com/Autumn-27/artex/intercept"
 	"github.com/Autumn-27/artex/traffic"
+	"github.com/Autumn-27/artex/traffic/rewrite"
 	actool "github.com/Autumn-27/norma/tool"
 )
 
@@ -161,6 +162,7 @@ func (t *Task) updateLifecycle(update func(*taskLifecycleState)) {
 }
 
 type taskLLMState struct {
+	Rotate         bool
 	ProfileID      *int64
 	ProfileIDs     []int64
 	ActiveID       *int64
@@ -181,6 +183,7 @@ func (t *Task) llmStateSnapshot() taskLLMState {
 	t.llmMu.RLock()
 	defer t.llmMu.RUnlock()
 	return taskLLMState{
+		Rotate:         t.LLMRotate,
 		ProfileID:      cloneInt64Ptr(t.LLMProfileID),
 		ProfileIDs:     append(make([]int64, 0, len(t.LLMProfileIDs)), t.LLMProfileIDs...),
 		ActiveID:       cloneInt64Ptr(t.ActiveLLMProfileID),
@@ -195,10 +198,12 @@ func (t *Task) llmStateSnapshot() taskLLMState {
 // chain. The active head stays authoritative for every non-worker role and for
 // failover ordering; rotation only distributes worker lanes across heads.
 func (t *Task) nextRotatedProfile() (int64, bool) {
+	t.llmMu.RLock()
+	defer t.llmMu.RUnlock()
 	t.rotateMu.Lock()
 	defer t.rotateMu.Unlock()
 	ids := t.LLMProfileIDs
-	if len(ids) == 0 {
+	if !t.LLMRotate || len(ids) == 0 {
 		return 0, false
 	}
 	pick := ids[t.rotateNext%len(ids)]
@@ -206,11 +211,14 @@ func (t *Task) nextRotatedProfile() (int64, bool) {
 	return pick, true
 }
 
-func (t *Task) setLLMState(profileID, activeID *int64, profileIDs []int64, revision int64, state, reason string) bool {
+func (t *Task) setLLMState(profileID, activeID *int64, profileIDs []int64, revision int64, state, reason string, rotate ...bool) bool {
 	t.llmMu.Lock()
 	defer t.llmMu.Unlock()
 	if revision < t.LLMChainRevision {
 		return false
+	}
+	if len(rotate) > 0 {
+		t.LLMRotate = rotate[0]
 	}
 	t.LLMProfileID = cloneInt64Ptr(profileID)
 	t.ActiveLLMProfileID = cloneInt64Ptr(activeID)
@@ -253,6 +261,12 @@ type Manager struct {
 	enrich      *enrich.Engine         // engine-side asset auto-completion (DNS/HTTP)
 	interceptor *intercept.Interceptor // user-configured tool-call interception rules
 
+	// Capture-proxy rewrite rules: rewriteMu serializes reloads, rewriteSet is
+	// the snapshot last compiled, rewriteErrors outlives the reloads.
+	rewriteMu     sync.Mutex
+	rewriteSet    atomic.Pointer[rewrite.Set]
+	rewriteErrors rewrite.ErrorLog
+
 	companyMu sync.Mutex // serializes task/company-scope commits with live handle registration
 	// taskStateMu preserves commit order between PostgreSQL lifecycle writes and
 	// their in-memory mirrors. lifecycleMu makes snapshots race-free, but without
@@ -263,12 +277,14 @@ type Manager struct {
 	active      string
 	trafficOn   bool // traffic capture switch (off by default; settings.traffic_capture)
 	llmRecOn    bool // LLM recording switch (off by default; settings.llm_record)
-	// Web search switch and source (off by default; settings.web_search_*). brave-free needs braveKey; tavily needs tavilyKey.
+	// Web search switch and source (off by default; settings.web_search_*). brave-free needs braveKey; tavily needs tavilyKey;
+	// keenable works keyless or with keenableKey.
 	// webSearchProxy is a separate egress proxy (http/https/socks5), unrelated to the MITM proxy that records traffic.
 	webSearchOn      bool
 	webSearchBackend string
 	braveKey         string
 	tavilyKey        string
+	keenableKey      string
 	webSearchProxy   string
 	// globalProxy is the egress proxy all target traffic routes through
 	// (http/https/socks5, optional user:pass). Empty = direct. When traffic
@@ -285,6 +301,7 @@ const (
 	settingWebSearchBackend    = "web_search_backend"
 	settingBraveKey            = "brave_search_api_key"
 	settingTavilyKey           = "tavily_search_api_key"
+	settingKeenableKey         = "keenable_search_api_key"
 	settingWebSearchProxy      = "web_search_proxy"
 	// settingGlobalProxy is the global egress proxy for all target traffic
 	// (http/https/socks5). Empty = direct. Distinct from web_search_proxy (which
@@ -442,6 +459,7 @@ func NewManager(dir, proxyAddr string) (*Manager, error) {
 		}
 		if tr != nil {
 			m.traffic = tr
+			m.reloadRewriteRules() // in place before the proxy accepts a connection
 			go func() {
 				log.Printf("[traffic] recording proxy on %s (set HTTP_PROXY=%s + trust _ca CA)", proxyAddr, tr.ProxyAddr())
 				if err := tr.Start(); err != nil {
@@ -467,6 +485,9 @@ func NewManager(dir, proxyAddr string) (*Manager, error) {
 	}
 	if v, ok, _ := pg.GetSetting(settingTavilyKey); ok {
 		m.tavilyKey = v
+	}
+	if v, ok, _ := pg.GetSetting(settingKeenableKey); ok {
+		m.keenableKey = v
 	}
 	if v, ok, _ := pg.GetSetting(settingWebSearchProxy); ok {
 		m.webSearchProxy = v
@@ -579,30 +600,32 @@ func (m *Manager) SetLLMPoolBindFallback(on bool) error {
 }
 
 // WebSearch returns the current web-search config: whether it is enabled, the
-// backend ("ddgs" | "brave-free" | "tavily"), the Brave API key, the Tavily API
-// key (each empty unless set), and the dedicated egress proxy (empty = direct).
-func (m *Manager) WebSearch() (on bool, backend, braveKey, tavilyKey, proxy string) {
+// backend ("ddgs" | "brave-free" | "tavily" | "keenable" | "deepseek"), the
+// Brave, Tavily and Keenable API keys (each empty unless set), and the
+// dedicated egress proxy (empty = direct). The Keenable key is optional: empty
+// selects the keyless public endpoint.
+func (m *Manager) WebSearch() (on bool, backend, braveKey, tavilyKey, keenableKey, proxy string) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	backend = m.webSearchBackend
 	if backend == "" {
 		backend = defaultWebSearchBackend
 	}
-	return m.webSearchOn, backend, m.braveKey, m.tavilyKey, m.webSearchProxy
+	return m.webSearchOn, backend, m.braveKey, m.tavilyKey, m.keenableKey, m.webSearchProxy
 }
 
 // WebSearchOpts returns the config as the agent-package struct the server pushes
 // into each agent. Disabled when off, or when a keyed backend is selected without
 // its key (so a half-configured backend never silently drops the tool at session build).
 func (m *Manager) WebSearchOpts() agent.WebSearchOpts {
-	on, backend, braveKey, tavilyKey, proxy := m.WebSearch()
+	on, backend, braveKey, tavilyKey, keenableKey, proxy := m.WebSearch()
 	if on && backend == "brave-free" && strings.TrimSpace(braveKey) == "" {
 		on = false
 	}
 	if on && backend == "tavily" && strings.TrimSpace(tavilyKey) == "" {
 		on = false
 	}
-	o := agent.WebSearchOpts{Enabled: on, Backend: backend, BraveKey: braveKey, TavilyKey: tavilyKey, Proxy: proxy}
+	o := agent.WebSearchOpts{Enabled: on, Backend: backend, BraveKey: braveKey, TavilyKey: tavilyKey, KeenableKey: keenableKey, Proxy: proxy}
 	if backend == deepSeekWebSearchBackend {
 		o.DeepSeekBaseURL, o.DeepSeekAPIKey, o.DeepSeekModel = m.deepSeekSearchCreds()
 	}
@@ -624,11 +647,11 @@ func (m *Manager) deepSeekSearchCreds() (baseURL, apiKey, model string) {
 	return p.BaseURL, p.APIKey, p.Model
 }
 
-// SetWebSearch persists and applies the web-search settings. braveKey, tavilyKey, and
-// proxy are each left untouched when nil (so toggling the switch doesn't wipe a saved
-// key/proxy; pass a pointer to "" to clear). Callers must rebuild agents (applyLLM)
-// afterwards so the settings take effect.
-func (m *Manager) SetWebSearch(on bool, backend string, braveKey, tavilyKey, proxy *string) error {
+// SetWebSearch persists and applies the web-search settings. braveKey, tavilyKey,
+// keenableKey and proxy are each left untouched when nil (so toggling the switch
+// doesn't wipe a saved key/proxy; pass a pointer to "" to clear). Callers must
+// rebuild agents (applyLLM) afterwards so the settings take effect.
+func (m *Manager) SetWebSearch(on bool, backend string, braveKey, tavilyKey, keenableKey, proxy *string) error {
 	backend = strings.TrimSpace(backend)
 	if backend == "" {
 		backend = defaultWebSearchBackend
@@ -657,6 +680,14 @@ func (m *Manager) SetWebSearch(on bool, backend string, braveKey, tavilyKey, pro
 		}
 		m.mu.Lock()
 		m.tavilyKey = *tavilyKey
+		m.mu.Unlock()
+	}
+	if keenableKey != nil {
+		if err := m.pg.SetSetting(settingKeenableKey, *keenableKey); err != nil {
+			return err
+		}
+		m.mu.Lock()
+		m.keenableKey = *keenableKey
 		m.mu.Unlock()
 	}
 	if proxy != nil {
@@ -911,6 +942,7 @@ var searchBackendEndpoints = map[string]string{
 	"ddgs":       "https://html.duckduckgo.com",
 	"brave-free": "https://api.search.brave.com",
 	"tavily":     "https://api.tavily.com",
+	"keenable":   "https://api.keenable.ai",
 }
 
 // targetGateEndpoints lists the endpoints of the platform's own services, which
@@ -924,7 +956,7 @@ func (m *Manager) targetGateEndpoints() []string {
 	for _, p := range profiles {
 		out = append(out, p.BaseURL, p.Proxy)
 	}
-	on, backend, _, _, searchProxy := m.WebSearch()
+	on, backend, _, _, _, searchProxy := m.WebSearch()
 	if on {
 		out = append(out, searchBackendEndpoints[backend])
 	}
@@ -1132,12 +1164,12 @@ func (m *Manager) DeleteCompanyWithAssets(id int64, deleteAssets bool) (int64, e
 // ReplaceTaskLLMProfiles resets a task's ordered provider chain and mirrors the
 // committed state onto the live task handle. Terminal tasks are editable too —
 // their main-agent conversation keeps running on the chain after the task finishes.
-func (m *Manager) ReplaceTaskLLMProfiles(id string, profileIDs []int64, activeProfileID int64) (int64, error) {
+func (m *Manager) ReplaceTaskLLMProfiles(id string, profileIDs []int64, activeProfileID int64, rotate ...*bool) (int64, error) {
 	n, err := strconv.ParseInt(id, 10, 64)
 	if err != nil {
 		return 0, err
 	}
-	if err := m.pg.ReplaceTaskLLMProfiles(n, profileIDs, activeProfileID); err != nil {
+	if err := m.pg.ReplaceTaskLLMProfiles(n, profileIDs, activeProfileID, rotate...); err != nil {
 		return 0, err
 	}
 	pt, err := m.pg.GetTask(n)
@@ -1146,7 +1178,7 @@ func (m *Manager) ReplaceTaskLLMProfiles(id string, profileIDs []int64, activePr
 	}
 	m.mu.Lock()
 	if task := m.tasks[id]; task != nil {
-		task.setLLMState(pt.LLMProfileID, pt.ActiveLLMProfileID, pt.LLMProfileIDs, pt.LLMChainRevision, pt.LLMFailoverState, pt.LLMFailoverReason)
+		task.setLLMState(pt.LLMProfileID, pt.ActiveLLMProfileID, pt.LLMProfileIDs, pt.LLMChainRevision, pt.LLMFailoverState, pt.LLMFailoverReason, pt.LLMRotate)
 	}
 	m.mu.Unlock()
 	// Terminal tasks do not reopen budget-blocked intents: no worker is running for
