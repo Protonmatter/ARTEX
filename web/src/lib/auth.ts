@@ -18,7 +18,11 @@ export const auth = {
     if (current) return current;
     const legacy = localStorage.getItem(LEGACY_TOKEN_KEY);
     if (legacy) {
-      this.setToken(legacy);
+      try {
+        this.setToken(legacy);
+      } catch {
+        // A readable legacy session remains usable when storage rejects migration writes.
+      }
       return legacy;
     }
     // Mock demo: no real login; return a fake token so the route guard allows going straight into the main UI.

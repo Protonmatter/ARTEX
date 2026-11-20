@@ -39,8 +39,12 @@ function detectLocale(): Locale {
     if (saved === null) {
       saved = window.localStorage.getItem(LEGACY_STORAGE_KEY);
       if (saved === "tr" || saved === "en") {
-        window.localStorage.setItem(STORAGE_KEY, saved);
-        window.localStorage.removeItem(LEGACY_STORAGE_KEY);
+        try {
+          window.localStorage.setItem(STORAGE_KEY, saved);
+          window.localStorage.removeItem(LEGACY_STORAGE_KEY);
+        } catch {
+          // Keep using the saved locale even when the migration cannot be written.
+        }
       }
     }
     if (saved === "tr" || saved === "en") return saved;

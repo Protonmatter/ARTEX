@@ -561,8 +561,9 @@ func TestNotifyTestMessageEndpoint(t *testing.T) {
 	}
 	// The test message must be recognizable as a test at a glance; it must not be
 	// mistaken for a real vulnerability.
-	if text := markdownText(t, hook.last(t)); !strings.Contains(text, "Test") {
-		t.Fatalf("the test message should identify itself as a test: %s", text)
+	if text := markdownText(t, hook.last(t)); !strings.Contains(text, "Test") ||
+		!strings.Contains(text, "a ReconRivet notification channel") || !strings.Contains(text, "reconrivet.example.com") {
+		t.Fatalf("the test message should use the new name and identify itself as a test: %s", text)
 	}
 	// When the configuration is broken, the channel's raw error should be returned
 	// to the user as-is.

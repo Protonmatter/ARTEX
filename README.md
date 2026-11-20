@@ -31,7 +31,8 @@ The repository, Go module, `artex` binary and Docker service, and `ARTEX_*` envi
 keep their existing names for deployment compatibility. New UI and protocol identifiers use
 ReconRivet. Existing administrator logins and `artex_token` sessions remain accepted; the web UI
 migrates a stored session to `reconrivet_token` on use. HAR imports accept the old
-`_artexExchangeId` field, while new exports use `_reconrivetExchangeId`.
+`_artexExchangeId` field, while new exports use `_reconrivetExchangeId`. The Go
+`HAREntry.ArtexExchangeID` field remains available to existing callers.
 
 - **It explores, it doesn't chat.** Goal decomposition, intent dispatch, worker execution and
   write-back form a closed loop that keeps advancing until the goal is proven.

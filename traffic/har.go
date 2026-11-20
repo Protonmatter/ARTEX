@@ -81,14 +81,48 @@ type HARTimings struct {
 }
 
 type HAREntry struct {
-	StartedDateTime       string      `json:"startedDateTime"`
-	Time                  float64     `json:"time"`
-	Request               HARRequest  `json:"request"`
-	Response              HARResponse `json:"response"`
-	Cache                 HARCache    `json:"cache"`
-	Timings               HARTimings  `json:"timings"`
-	ReconRivetExchangeID  string      `json:"_reconrivetExchangeId,omitempty"`
-	LegacyArtexExchangeID string      `json:"_artexExchangeId,omitempty"`
+	StartedDateTime      string      `json:"startedDateTime"`
+	Time                 float64     `json:"time"`
+	Request              HARRequest  `json:"request"`
+	Response             HARResponse `json:"response"`
+	Cache                HARCache    `json:"cache"`
+	Timings              HARTimings  `json:"timings"`
+	ReconRivetExchangeID string      `json:"_reconrivetExchangeId,omitempty"`
+	// ArtexExchangeID is retained for Go callers and for importing older HAR files.
+	ArtexExchangeID string `json:"-"`
+}
+
+type harEntryJSON HAREntry
+
+// MarshalJSON keeps old Go callers source-compatible while new exports carry
+// only the ReconRivet field. An entry built with only the legacy field still
+// serializes as it did before the rename.
+func (e HAREntry) MarshalJSON() ([]byte, error) {
+	legacy := ""
+	if e.ReconRivetExchangeID == "" {
+		legacy = e.ArtexExchangeID
+	}
+	return json.Marshal(struct {
+		harEntryJSON
+		LegacyExchangeID string `json:"_artexExchangeId,omitempty"`
+	}{harEntryJSON(e), legacy})
+}
+
+func (e *HAREntry) UnmarshalJSON(raw []byte) error {
+	var wire struct {
+		harEntryJSON
+		LegacyExchangeID string `json:"_artexExchangeId,omitempty"`
+	}
+	if err := json.Unmarshal(raw, &wire); err != nil {
+		return err
+	}
+	*e = HAREntry(wire.harEntryJSON)
+	if wire.LegacyExchangeID != "" {
+		e.ArtexExchangeID = wire.LegacyExchangeID
+	} else {
+		e.ArtexExchangeID = e.ReconRivetExchangeID
+	}
+	return nil
 }
 
 type HARRequest struct {
@@ -402,7 +436,7 @@ func parseHAREntry(entry HAREntry) (parsedHARExchange, error) {
 	id := harExchangeID(ts, method, canonicalURL, entry.Response.Status, reqBody, respBody)
 	preserved := strings.TrimSpace(entry.ReconRivetExchangeID)
 	if !validHARExchangeID(preserved) {
-		preserved = strings.TrimSpace(entry.LegacyArtexExchangeID)
+		preserved = strings.TrimSpace(entry.ArtexExchangeID)
 	}
 	if validHARExchangeID(preserved) {
 		id = preserved
@@ -808,6 +842,7 @@ func (t *Traffic) ExportHAR(f PageQuery, opts HARExportOptions) (HAR, HARExportM
 			Cache:                HARCache{},
 			Timings:              HARTimings{Send: -1, Wait: -1, Receive: -1},
 			ReconRivetExchangeID: r.id,
+			ArtexExchangeID:      r.id,
 		}
 
 		entryJSON, err := json.Marshal(entry)

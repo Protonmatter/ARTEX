@@ -13,8 +13,11 @@ const output = ts.transpileModule(fs.readFileSync(path.join(web, "src/lib/auth.t
 const storageOutput = ts.transpileModule(fs.readFileSync(path.join(web, "src/lib/local-storage.client.ts"), "utf8"), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
 }).outputText;
+const localeOutput = ts.transpileModule(fs.readFileSync(path.join(web, "src/i18n/index.ts"), "utf8"), {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+}).outputText;
 
-function setup(initial = {}, mock = false) {
+function setup(initial = {}, mock = false, writeFails = false) {
   const values = new Map(Object.entries(initial));
   const cookies = [];
   const exports = {};
@@ -23,7 +26,10 @@ function setup(initial = {}, mock = false) {
     window: {},
     localStorage: {
       getItem: (key) => values.get(key) ?? null,
-      setItem: (key, value) => values.set(key, value),
+      setItem: (key, value) => {
+        if (writeFails) throw new Error("storage write rejected");
+        values.set(key, value);
+      },
       removeItem: (key) => values.delete(key),
     },
     document: { set cookie(value) { cookies.push(value); } },
@@ -40,6 +46,13 @@ test("legacy token migrates to the new storage key and cookie", () => {
   assert.equal(s.values.has("artex_token"), false);
   assert.match(s.cookies[0], /^reconrivet_token=legacy-session;/);
   assert.match(s.cookies[1], /^artex_token=; path=\/; max-age=0$/);
+});
+
+test("legacy token remains usable when storage migration fails", () => {
+  const s = setup({ artex_token: "legacy-session" }, false, true);
+  assert.equal(s.auth.getToken(), "legacy-session");
+  assert.equal(s.values.get("artex_token"), "legacy-session");
+  assert.equal(s.values.has("reconrivet_token"), false);
 });
 
 test("new token takes precedence and logout clears both names", () => {
@@ -80,4 +93,25 @@ test("legacy browser preferences migrate without overwriting new preferences", (
   assert.equal(values.get("reconrivet_chat_send_mode"), "ctrl-enter");
   assert.equal(values.has("artex_chat_send_mode"), false);
   assert.equal(exports.getLocalStorageValue("reconrivet_task_list_sort"), "new-sort");
+});
+
+test("saved legacy locale survives a rejected migration write", () => {
+  const values = new Map([["artex.locale", "tr"]]);
+  const exports = {};
+  vm.runInNewContext(localeOutput, {
+    exports,
+    require: () => ({}),
+    window: {
+      localStorage: {
+        getItem: (key) => values.get(key) ?? null,
+        setItem: () => { throw new Error("storage write rejected"); },
+        removeItem: (key) => values.delete(key),
+      },
+      navigator: { languages: ["en-US"], language: "en-US" },
+    },
+    document: { documentElement: {} },
+    process: { env: {} },
+  });
+  assert.equal(exports.locale, "tr");
+  assert.equal(values.get("artex.locale"), "tr");
 });
