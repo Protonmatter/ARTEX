@@ -56,6 +56,7 @@ Examples below use current naming; Git history retains the original release text
 
 - **Task creation account reset**: after a task is created, the form clears its test accounts along with its other fields. Editable account rows keep stable local identities when an earlier row is removed.
 - **System Settings mock status**: the demo returns a complete target-noise status, and the card rejects an incomplete response with an error instead of crashing the page.
+- **Static navigation payloads**: the static export writes flat aliases for Next.js route-segment payloads so client navigation can load them from ordinary file servers and the embedded UI.
 - **Startup identity**: the console banner prints ReconRivet.
 - **Workspace and skill symlink confinement**: workspace file operations, the skill file APIs and the skill loader resolve symlinks in every path component and refuse a target outside their root, so a link planted in the workspace or a skill directory cannot expose another file.
 - **Target gate behind proxies**: a target approval is name-only whenever a proxy is in the path, including the recording proxy, the global egress proxy and a custom tool's own proxy, so the gate never claims an IP binding the proxy does not enforce.

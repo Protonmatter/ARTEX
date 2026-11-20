@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "build:static": "NEXT_EXPORT=1 next build",
+    "build:static": "NEXT_EXPORT=1 next build && node scripts/flatten-static-rsc.mjs",
     "start": "next start",
     "lint": "biome lint",
     "format": "biome format --write",
@@ -18,7 +18,8 @@
     "test:upload": "node --test scripts/upload.test.mjs",
     "test:i18n": "node scripts/check-i18n.mjs",
     "test:auth": "node --test scripts/auth.test.mjs",
-    "test:noise": "node --test scripts/noise-status.test.mjs"
+    "test:noise": "node --test scripts/noise-status.test.mjs",
+    "test:static-rsc": "node --test scripts/flatten-static-rsc.test.mjs"
   },
   "lint-staged": {
     "*.{js,ts,jsx,tsx}": [
