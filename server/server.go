@@ -41,7 +41,7 @@ import (
 // Defaults to "dev" for local builds. Exposed to the frontend via GET /api/health.
 var BuildVersion = "dev"
 
-// Server exposes the ARTEX backend over a JSON HTTP API for the shadcn/ui
+// Server exposes the ReconRivet backend over a JSON HTTP API for the shadcn/ui
 // frontend.
 type Server struct {
 	m      *Manager
@@ -1084,7 +1084,7 @@ func (s *Server) health(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, 200, map[string]any{"ok": true})
 		return
 	}
-	out := map[string]any{"ok": true, "service": "artex", "version": BuildVersion}
+	out := map[string]any{"ok": true, "service": "reconrivet", "version": BuildVersion}
 	// Opt-in only (ARTEX_UPDATE_CHECK); off, this returns "" without any request.
 	if latest := updates.newerVersion(r.Context(), time.Now(), BuildVersion); latest != "" {
 		out["latest_version"] = latest

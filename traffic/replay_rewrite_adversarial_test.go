@@ -48,7 +48,7 @@ func TestAdversarialReplayNonceHeaderDuplicatesStripped(t *testing.T) {
 
 	h := http.Header{}
 	h[replayNonceHeader] = []string{"aaaa", "bbbb"}
-	h["x-artex-replay-nonce"] = []string{"cccc"}
+	h["x-reconrivet-replay-nonce"] = []string{"cccc"}
 	resp, _ := sendThrough(t, tr, proxyURL, http.MethodGet, target.URL+"/dup", "", h)
 
 	mu.Lock()
@@ -100,7 +100,7 @@ func TestAdversarialReplayNonceRegistrySingleUse(t *testing.T) {
 		t.Fatalf("single occurrence = (%q, %v, %d), want (%q, true, 0)", got, present, len(h), n)
 	}
 
-	h2 := http.Header{replayNonceHeader: {"a", "b"}, "x-artex-replay-nonce": {"c"}}
+	h2 := http.Header{replayNonceHeader: {"a", "b"}, "x-reconrivet-replay-nonce": {"c"}}
 	if got, present := takeReplayNonce(h2); !present || got != "" || len(h2) != 0 {
 		t.Fatalf("duplicates = (%q, %v, %d), want (\"\", true, 0)", got, present, len(h2))
 	}

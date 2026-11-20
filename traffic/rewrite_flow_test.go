@@ -94,7 +94,7 @@ func exchangeIDByPath(t *testing.T, tr *Traffic, suffix string) string {
 	return id
 }
 
-// logBuf captures the standard logger, where every ARTEX log goes.
+// logBuf captures the standard logger, where every ReconRivet log goes.
 type logBuf struct {
 	mu sync.Mutex
 	b  bytes.Buffer

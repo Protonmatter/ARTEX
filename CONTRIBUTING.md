@@ -13,4 +13,4 @@
 
 ## Security
 
-- Do not open a public issue for a vulnerability in ARTEX itself. Follow the [private reporting instructions](SECURITY.md#reporting-a-vulnerability).
+- Do not open a public issue for a vulnerability in ReconRivet itself. Follow the [private reporting instructions](SECURITY.md#reporting-a-vulnerability).

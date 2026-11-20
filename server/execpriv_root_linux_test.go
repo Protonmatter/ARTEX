@@ -243,7 +243,7 @@ attempt("chmod", lambda: os.chmod(d, 0o777))
 	}
 }
 
-// An MCP stdio command is started as `<server> __artex-exec-drop uid gid -- cmd`;
+// An MCP stdio command is started as `<server> __reconrivet-exec-drop uid gid -- cmd`;
 // mcp.NewStdioClient runs it with exec.Command and the server environment.
 func TestExecutorMCPStdioAsRoot(t *testing.T) {
 	f := newExecRootFixture(t)

@@ -25,4 +25,8 @@ func TestWorkerChatMarkerOnlyMatchesItsNormalUserTurn(t *testing.T) {
 	if hasWorkerChatMessage(messages, "worker-message-missing") {
 		t.Fatal("unrelated request id matched a Worker user turn")
 	}
+	legacy := []llm.Message{llm.UserText("<!-- ARTEX_WORKER_CHAT:" + requestID + " -->\nold intent")}
+	if !hasWorkerChatMessage(legacy, requestID) {
+		t.Fatal("legacy Worker chat marker was not recognized on resume")
+	}
 }

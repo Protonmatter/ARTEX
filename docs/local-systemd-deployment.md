@@ -1,6 +1,6 @@
-# Local ARTEX systemd deployment
+# Local ReconRivet systemd deployment
 
-This guide describes how to deploy ARTEX locally under `systemd` using the example unit at `docs/examples/artex.service`.
+This guide describes how to deploy ReconRivet locally under `systemd` using the example unit at `docs/examples/artex.service`.
 
 ## Placeholders and defaults
 
@@ -33,7 +33,7 @@ Directory ownership and modes:
 
 - `<install-dir>` (`/opt/artex`): `root:<artex-user>`, mode `0755` (executable `/opt/artex/artex` mode `0755`).
 - `<install-dir>/data` (`/opt/artex/data`): `<artex-user>:<artex-user>`, mode `0770` so the service user (and, in a root-run deployment using an executor group, that group) can write task run directories while blocking world access.
-- `<install-dir>/keys` (`/opt/artex/keys`): `<artex-user>:<artex-user>`, mode `0700`. Holds `jwt.key` and `secret.key` (mode `0600`) outside the browsable `data/` directory. `docs/examples/artex.service` sets `Environment=ARTEX_JWT_KEY_DIR=/opt/artex/keys` so the non-root service writes key files here rather than into `root`-owned `/opt/artex` (if `ARTEX_JWT_KEY_DIR` were left unset, ARTEX would fall back to `<install-dir>` and fail to create `jwt.key` and `secret.key` when `<install-dir>` is `root:<artex-user>` `0755`).
+- `<install-dir>/keys` (`/opt/artex/keys`): `<artex-user>:<artex-user>`, mode `0700`. Holds `jwt.key` and `secret.key` (mode `0600`) outside the browsable `data/` directory. `docs/examples/artex.service` sets `Environment=ARTEX_JWT_KEY_DIR=/opt/artex/keys` so the non-root service writes key files here rather than into `root`-owned `/opt/artex` (if `ARTEX_JWT_KEY_DIR` were left unset, ReconRivet would fall back to `<install-dir>` and fail to create `jwt.key` and `secret.key` when `<install-dir>` is `root:<artex-user>` `0755`).
 - `<install-dir>/config.json` (`/opt/artex/config.json`): `<artex-user>:<artex-user>`, mode `0600`.
 
 ## Database and credentials
@@ -85,7 +85,7 @@ sudo systemctl daemon-reload
 
 `docs/examples/artex.service` intentionally declares only `After=network.target` and does not hardcode a distribution-specific PostgreSQL unit (such as Debian's `postgresql@<pg-version>-<pg-cluster>.service`), so it works across Linux distributions and with remote PostgreSQL servers.
 
-When PostgreSQL runs locally on the same host, add a systemd drop-in (`sudo systemctl edit artex.service`) so ARTEX starts after and depends on your local PostgreSQL unit:
+When PostgreSQL runs locally on the same host, add a systemd drop-in (`sudo systemctl edit artex.service`) so ReconRivet starts after and depends on your local PostgreSQL unit:
 
 ```ini
 [Unit]
@@ -93,11 +93,11 @@ Requires=<pg-unit>
 After=<pg-unit>
 ```
 
-For example, set `<pg-unit>` to `postgresql.service` on RHEL/Fedora/Arch, or to `postgresql@<pg-version>-<pg-cluster>.service` on Debian/Ubuntu (and verify `/etc/postgresql/<pg-version>/<pg-cluster>/start.conf` is `auto`, not `disabled`). `ARTEX_JWT_KEY_DIR=/opt/artex/keys` is already set in `docs/examples/artex.service`; override it in the drop-in only if you install ARTEX under a different `<install-dir>`. Run `sudo systemctl daemon-reload` after editing the drop-in.
+For example, set `<pg-unit>` to `postgresql.service` on RHEL/Fedora/Arch, or to `postgresql@<pg-version>-<pg-cluster>.service` on Debian/Ubuntu (and verify `/etc/postgresql/<pg-version>/<pg-cluster>/start.conf` is `auto`, not `disabled`). `ARTEX_JWT_KEY_DIR=/opt/artex/keys` is already set in `docs/examples/artex.service`; override it in the drop-in only if you install ReconRivet under a different `<install-dir>`. Run `sudo systemctl daemon-reload` after editing the drop-in.
 
 ### Enable and start
 
-If ARTEX is running outside `systemd`, identify its PID/executable and send that verified process `SIGTERM`. Wait for shutdown and release of ports `8787` and `8788` before enabling the service:
+If ReconRivet is running outside `systemd`, identify its PID/executable and send that verified process `SIGTERM`. Wait for shutdown and release of ports `8787` and `8788` before enabling the service:
 
 ```bash
 ss -ltnp '( sport = :8787 or sport = :8788 )'
@@ -118,7 +118,7 @@ On a new database, visit `http://127.0.0.1:8787/setup`, provide the one-time set
 
 ## Reboot persistence verification (example)
 
-Pre-reboot checks confirm persistent ARTEX enablement, active PostgreSQL and ARTEX services, HTTP 200 health, and initialized authentication, but do not by themselves prove survival across a reboot.
+Pre-reboot checks confirm persistent ReconRivet enablement, active PostgreSQL and ReconRivet services, HTTP 200 health, and initialized authentication, but do not by themselves prove survival across a reboot.
 
 To verify reboot persistence on a host, record the current boot ID and timestamp in an ignored runtime file such as `<install-dir>/data/reboot-verification-baseline.json` before rebooting, and do not overwrite that baseline until the test is complete:
 
@@ -132,7 +132,7 @@ Save other work before rebooting; this disconnects local and remote sessions:
 sudo systemctl reboot
 ```
 
-After reconnecting, do not manually start ARTEX before checking automatic startup. Compare the current boot ID with the saved baseline and check the services:
+After reconnecting, do not manually start ReconRivet before checking automatic startup. Compare the current boot ID with the saved baseline and check the services:
 
 ```bash
 cd /opt/artex
@@ -144,7 +144,7 @@ python3 -c 'import json, urllib.request; r=json.load(urllib.request.urlopen("htt
 systemctl show artex.service --no-pager -p ActiveState -p SubState -p MainPID -p ActiveEnterTimestamp
 ```
 
-Success requires a changed boot ID, enabled ARTEX, both services active without manual startup, HTTP 200, and authentication still initialized. A new PID alone is not proof of reboot. If the system has just booted, allow startup time and repeat health checks. Refresh the baseline before running a future independent reboot test.
+Success requires a changed boot ID, enabled ReconRivet, both services active without manual startup, HTTP 200, and authentication still initialized. A new PID alone is not proof of reboot. If the system has just booted, allow startup time and repeat health checks. Refresh the baseline before running a future independent reboot test.
 
 ### Example reboot verification record
 
@@ -168,7 +168,7 @@ journalctl -b -u artex.service --no-pager
 journalctl -u artex.service -f
 ```
 
-Treat journal output as potentially sensitive; never share unredacted setup tokens or credentials. If startup fails, check PostgreSQL status, database settings and permissions on `<install-dir>/config.json`, `<install-dir>/data`, and `<install-dir>/keys`, occupied ports (`8787`/`8788`), and the journal. After a PostgreSQL dependency failure, restart ARTEX explicitly once the database is healthy. To recover from the start limit:
+Treat journal output as potentially sensitive; never share unredacted setup tokens or credentials. If startup fails, check PostgreSQL status, database settings and permissions on `<install-dir>/config.json`, `<install-dir>/data`, and `<install-dir>/keys`, occupied ports (`8787`/`8788`), and the journal. After a PostgreSQL dependency failure, restart ReconRivet explicitly once the database is healthy. To recover from the start limit:
 
 ```bash
 sudo systemctl reset-failed artex.service

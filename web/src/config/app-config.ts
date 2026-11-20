@@ -5,11 +5,11 @@ import { t } from "@/i18n";
 const currentYear = new Date().getFullYear();
 
 export const APP_CONFIG = {
-  name: "ARTEX",
+  name: "ReconRivet",
   version: packageJson.version,
-  copyright: `© ${currentYear}, ARTEX.`,
+  copyright: `© ${currentYear}, ReconRivet.`,
   meta: {
-    title: t("ARTEX — Autonomous Penetration Testing Console"),
+    title: t("ReconRivet — Autonomous Penetration Testing Console"),
     description: t("Console for the LLM-driven autonomous penetration testing system"),
   },
 };

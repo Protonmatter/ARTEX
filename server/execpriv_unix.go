@@ -126,7 +126,7 @@ func prepareExecScriptDir(p ExecPrivilege, dataDir string) (string, error) {
 }
 
 // prepareNormaTaskDir creates dir, the directory Norma keeps background-task output
-// in: os.TempDir()/norma, a path ARTEX does not choose. Norma creates it with the
+// in: os.TempDir()/norma, a path ReconRivet does not choose. Norma creates it with the
 // first session and writes <session>/tasks/task_<n>.output below it from the server
 // process. The temp directory is world-writable: an executor process that runs
 // before that first session could create dir itself and place symlinks in it for
@@ -575,7 +575,7 @@ func InstallBashShim(p ExecPrivilege) error {
 }
 
 // RunExecShimIfRequested makes the process a privilege-drop shim when it was started
-// as one: as bash through the PATH shim, or as artex __artex-exec-drop for an MCP
+// as one: as bash through the PATH shim, or as artex __reconrivet-exec-drop for an MCP
 // stdio command. It exits or execs the target; it returns only for an ordinary start.
 func RunExecShimIfRequested(argv []string) {
 	if len(argv) == 0 {

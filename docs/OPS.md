@@ -1,4 +1,4 @@
-# ARTEX operations
+# ReconRivet operations
 
 ## 1. Startup
 

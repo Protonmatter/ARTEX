@@ -1,4 +1,4 @@
-// Package db is the PostgreSQL data source for ARTEX (replacing the old graph
+// Package db is the PostgreSQL data source for ReconRivet (replacing the old graph
 // single-file SQLite). It opens the connection, applies the schema, and seeds
 // the built-in agents and variable catalog.
 //

@@ -1,4 +1,4 @@
-// Command artex runs the ARTEX backend: the dual PostgreSQL graph stores,
+// Command artex runs the ReconRivet backend: the dual PostgreSQL graph stores,
 // the event-driven exploration engine, and the JSON HTTP API consumed by the
 // shadcn/ui frontend.
 package main
@@ -212,7 +212,7 @@ func run() int {
 	}
 
 	go func() {
-		log.Printf("ARTEX %s backend listening on %s (data=%s, workers=%d)", version, *addr, *dataDir, mgr.Workers())
+		log.Printf("ReconRivet %s backend listening on %s (data=%s, workers=%d)", version, *addr, *dataDir, mgr.Workers())
 		if err := httpSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("serve: %v", err)
 		}

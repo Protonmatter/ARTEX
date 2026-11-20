@@ -43,8 +43,8 @@ const (
 	// the import limit.
 	DefaultHARMaxExportJSONBytes int64 = 31 << 20
 
-	maxHARImportErrors = 50
-	maxArtexIDLen      = 128
+	maxHARImportErrors  = 50
+	maxHARExchangeIDLen = 128
 )
 
 // ErrInvalidHAR marks a malformed or unsupported HAR document (mapped to HTTP 400).
@@ -81,13 +81,14 @@ type HARTimings struct {
 }
 
 type HAREntry struct {
-	StartedDateTime string      `json:"startedDateTime"`
-	Time            float64     `json:"time"`
-	Request         HARRequest  `json:"request"`
-	Response        HARResponse `json:"response"`
-	Cache           HARCache    `json:"cache"`
-	Timings         HARTimings  `json:"timings"`
-	ArtexExchangeID string      `json:"_artexExchangeId,omitempty"`
+	StartedDateTime       string      `json:"startedDateTime"`
+	Time                  float64     `json:"time"`
+	Request               HARRequest  `json:"request"`
+	Response              HARResponse `json:"response"`
+	Cache                 HARCache    `json:"cache"`
+	Timings               HARTimings  `json:"timings"`
+	ReconRivetExchangeID  string      `json:"_reconrivetExchangeId,omitempty"`
+	LegacyArtexExchangeID string      `json:"_artexExchangeId,omitempty"`
 }
 
 type HARRequest struct {
@@ -191,7 +192,7 @@ type HARExportMeta struct {
 }
 
 // ImportHAR parses a HAR 1.2 JSON document and inserts valid entries into the
-// traffic store. ARTEX-exported entries carrying a valid _artexExchangeId
+// traffic store. ReconRivet-exported entries carrying a valid _reconrivetExchangeId
 // preserve that ID so distinct exchanges within the same second round-trip
 // cleanly; external HAR entries receive a deterministic content-based har- ID
 // so re-importing the same HAR is idempotent and skips existing rows. URL
@@ -399,7 +400,11 @@ func parseHAREntry(entry HAREntry) (parsedHARExchange, error) {
 
 	canonicalURL := u.String()
 	id := harExchangeID(ts, method, canonicalURL, entry.Response.Status, reqBody, respBody)
-	if preserved := strings.TrimSpace(entry.ArtexExchangeID); validArtexExchangeID(preserved) {
+	preserved := strings.TrimSpace(entry.ReconRivetExchangeID)
+	if !validHARExchangeID(preserved) {
+		preserved = strings.TrimSpace(entry.LegacyArtexExchangeID)
+	}
+	if validHARExchangeID(preserved) {
 		id = preserved
 	}
 	return parsedHARExchange{
@@ -431,8 +436,8 @@ func harExchangeID(ts int64, method, rawURL string, status int, reqBody, respBod
 	return "har-" + hex.EncodeToString(h.Sum(nil))
 }
 
-func validArtexExchangeID(id string) bool {
-	if id == "" || len(id) > maxArtexIDLen {
+func validHARExchangeID(id string) bool {
+	if id == "" || len(id) > maxHARExchangeIDLen {
 		return false
 	}
 	for i := 0; i < len(id); i++ {
@@ -796,13 +801,13 @@ func (t *Traffic) ExportHAR(f PageQuery, opts HARExportOptions) (HAR, HARExportM
 		}
 
 		entry := HAREntry{
-			StartedDateTime: time.Unix(r.ts, 0).UTC().Format(time.RFC3339),
-			Time:            0,
-			Request:         harReq,
-			Response:        harResp,
-			Cache:           HARCache{},
-			Timings:         HARTimings{Send: -1, Wait: -1, Receive: -1},
-			ArtexExchangeID: r.id,
+			StartedDateTime:      time.Unix(r.ts, 0).UTC().Format(time.RFC3339),
+			Time:                 0,
+			Request:              harReq,
+			Response:             harResp,
+			Cache:                HARCache{},
+			Timings:              HARTimings{Send: -1, Wait: -1, Receive: -1},
+			ReconRivetExchangeID: r.id,
 		}
 
 		entryJSON, err := json.Marshal(entry)
@@ -829,7 +834,7 @@ func (t *Traffic) ExportHAR(f PageQuery, opts HARExportOptions) (HAR, HARExportM
 	doc := HAR{
 		Log: &HARLog{
 			Version:         HARVersion,
-			Creator:         HARCreator{Name: "ARTEX", Version: creatorVer},
+			Creator:         HARCreator{Name: "ReconRivet", Version: creatorVer},
 			Entries:         entries,
 			Truncated:       meta.Truncated,
 			TruncatedReason: meta.TruncatedReason,

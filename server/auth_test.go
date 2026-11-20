@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
@@ -11,6 +12,32 @@ import (
 
 	"github.com/Autumn-27/artex/db"
 )
+
+func TestExtractTokenCookieMigration(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		newToken string
+		oldToken string
+		want     string
+	}{
+		{name: "new", newToken: "new-token", want: "new-token"},
+		{name: "legacy", oldToken: "old-token", want: "old-token"},
+		{name: "prefer new", newToken: "new-token", oldToken: "old-token", want: "new-token"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			r := httptest.NewRequest("GET", "/api/traffic", nil)
+			if tc.newToken != "" {
+				r.AddCookie(&http.Cookie{Name: "reconrivet_token", Value: tc.newToken})
+			}
+			if tc.oldToken != "" {
+				r.AddCookie(&http.Cookie{Name: "artex_token", Value: tc.oldToken})
+			}
+			if got := extractToken(r); got != tc.want {
+				t.Fatalf("extractToken()=%q, want %q", got, tc.want)
+			}
+		})
+	}
+}
 
 // jwtKeyDirs returns fresh key, data and legacy base dirs and points
 // jwtLegacyBaseDir at the latter for the duration of the test. keyDir does not

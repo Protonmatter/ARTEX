@@ -518,12 +518,12 @@ func TestInterceptDecideRecordsApproverOverHTTP(t *testing.T) {
 		t.Fatalf("decide target row: %d", code)
 	}
 	pins, err := pg.ListTargetPins(scope)
-	if err != nil || len(pins) != 1 || pins[0].DecidedBy != "ARTEX" || pins[0].DecidedFrom != "192.0.2.1" ||
+	if err != nil || len(pins) != 1 || pins[0].DecidedBy != "ReconRivet" || pins[0].DecidedFrom != "192.0.2.1" ||
 		!slices.Equal(pins[0].PinnedIPs, []string{"203.0.113.7"}) || pins[0].InterceptID == nil || *pins[0].InterceptID != target {
 		t.Fatalf("pins = %+v, %v; want one pin with the approver and the address", pins, err)
 	}
 	row, err := pg.GetInterceptDetail(target)
-	if err != nil || row == nil || row.Status != "allowed" || row.DecidedBy != "human" || row.Audit.Approver != "ARTEX" || row.Audit.ApproverAddr != "192.0.2.1" {
+	if err != nil || row == nil || row.Status != "allowed" || row.DecidedBy != "human" || row.Audit.Approver != "ReconRivet" || row.Audit.ApproverAddr != "192.0.2.1" {
 		t.Fatalf("target row = %+v, %v", row, err)
 	}
 	if code := decide(target, "denied"); code != 409 {
@@ -548,7 +548,7 @@ func TestInterceptDecideRecordsApproverOverHTTP(t *testing.T) {
 	}
 	row, err = pg.GetInterceptDetail(classic)
 	if err != nil || row == nil || row.Status != "allowed" || row.DecidedBy != "human" || row.Audit == nil ||
-		row.Audit.Approver != "ARTEX" || row.Audit.ApproverAddr != "192.0.2.1" || row.Audit.EffectiveAction != "allow" {
+		row.Audit.Approver != "ReconRivet" || row.Audit.ApproverAddr != "192.0.2.1" || row.Audit.EffectiveAction != "allow" {
 		t.Fatalf("classic row = %+v, %v; want the approver and the address in its audit", row, err)
 	}
 	if pins, err := pg.ListTargetPins(scope); err != nil || len(pins) != 1 {
@@ -571,8 +571,8 @@ func TestJWTSubject(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := jwtSubject(token, key); got != "ARTEX" {
-		t.Fatalf("subject = %q, want ARTEX", got)
+	if got := jwtSubject(token, key); got != "ReconRivet" {
+		t.Fatalf("subject = %q, want ReconRivet", got)
 	}
 	if got := jwtSubject(token, []byte("another key, another key, another")); got != "" {
 		t.Fatalf("subject of a token signed with another key = %q, want none", got)

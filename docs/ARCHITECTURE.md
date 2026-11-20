@@ -1,4 +1,4 @@
-# ARTEX architecture (code-level companion)
+# ReconRivet architecture (code-level companion)
 
 The README's [Architecture](https://github.com/BaaRai/ARTEX#architecture) section has the
 component diagram and the 10,000-foot view. This document records the code-level map,
@@ -7,7 +7,7 @@ packages in isolation.
 
 ## 1. The two graphs
 
-ARTEX keeps two linked graphs, both in PostgreSQL (`db/schema.sql`):
+ReconRivet keeps two linked graphs, both in PostgreSQL (`db/schema.sql`):
 
 | Graph | Answers | Main tables | Code |
 | --- | --- | --- | --- |

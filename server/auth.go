@@ -177,7 +177,7 @@ type sessionClaims struct {
 	jwt.RegisteredClaims
 }
 
-// signJWT issues a 7-day HS256 token for user ARTEX at password version 0.
+// signJWT issues a 7-day HS256 token for the ReconRivet administrator at password version 0.
 func signJWT(key []byte) (string, error) {
 	return signJWTVersion(key, 0)
 }
@@ -187,7 +187,7 @@ func signJWTVersion(key []byte, version int64) (string, error) {
 	return jwt.NewWithClaims(jwt.SigningMethodHS256, sessionClaims{
 		Pwd: version,
 		RegisteredClaims: jwt.RegisteredClaims{
-			Subject:   "ARTEX",
+			Subject:   "ReconRivet",
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(jwtTTL)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},
@@ -271,10 +271,13 @@ func (s *Server) approver(r *http.Request) string {
 }
 
 // extractToken reads the JWT from Authorization: Bearer header,
-// artex_token cookie, or ?token= query param (for SSE connections).
+// reconrivet_token cookie (or legacy artex_token), or ?token= for SSE.
 func extractToken(r *http.Request) string {
 	if h := r.Header.Get("Authorization"); strings.HasPrefix(h, "Bearer ") {
 		return strings.TrimPrefix(h, "Bearer ")
+	}
+	if c, err := r.Cookie("reconrivet_token"); err == nil && c.Value != "" {
+		return c.Value
 	}
 	if c, err := r.Cookie("artex_token"); err == nil && c.Value != "" {
 		return c.Value
@@ -582,7 +585,7 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request, getSetting func(s
 		writeErr(w, 400, "Invalid request format")
 		return
 	}
-	if req.Username != "ARTEX" {
+	if req.Username != "ReconRivet" && req.Username != "ARTEX" {
 		writeErr(w, 401, "Incorrect username or password")
 		return
 	}

@@ -41,9 +41,8 @@ import (
 // messages API (the web_search_20250305 server tool), so each search consumes one
 // model call, and the search request is issued by DeepSeek's servers — it does NOT
 // go through the local Proxy, nor into the traffic recording.
-// KeenableSearchTitle is the X-Keenable-Title value ARTEX sends. Fixed in v1:
-// the title identifies the calling application to the provider.
-const KeenableSearchTitle = "ARTEX"
+// KeenableSearchTitle is the X-Keenable-Title value identifying ReconRivet to the provider.
+const KeenableSearchTitle = "ReconRivet"
 
 type WebSearchOpts struct {
 	Enabled     bool
@@ -108,7 +107,7 @@ func WorkerSessionID(explorationID, intentID int64) string {
 	return fmt.Sprintf("exp%d-worker-i%d", explorationID, intentID)
 }
 
-const workerChatMarkerPrefix = "<!-- ARTEX_WORKER_CHAT:"
+const workerChatMarkerPrefix = "<!-- RECONRIVET_WORKER_CHAT:"
 
 func workerChatMarker(requestID string) string {
 	return workerChatMarkerPrefix + requestID + " -->"
@@ -116,8 +115,9 @@ func workerChatMarker(requestID string) string {
 
 func hasWorkerChatMessage(messages []llm.Message, requestID string) bool {
 	marker := workerChatMarker(requestID)
+	legacyMarker := "<!-- ARTEX_WORKER_CHAT:" + requestID + " -->"
 	for _, message := range messages {
-		if message.Role == llm.RoleUser && strings.Contains(message.Text(), marker) {
+		if message.Role == llm.RoleUser && (strings.Contains(message.Text(), marker) || strings.Contains(message.Text(), legacyMarker)) {
 			return true
 		}
 	}
