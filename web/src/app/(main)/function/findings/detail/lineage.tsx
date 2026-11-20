@@ -24,7 +24,9 @@ export function FindingLineageView({ findingId }: { findingId: string }) {
         setNodes(g.nodes ?? []);
         setEdges(g.edges ?? []);
       })
-      .catch(() => {})
+      .catch(() => {
+        // Keep the empty graph when lineage is unavailable.
+      })
       .finally(() => {
         if (alive) setLoaded(true);
       });

@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { toast } from "sonner";
 import {
   RadioIcon,
   SearchIcon,
@@ -164,7 +165,6 @@ export default function LLMRecordsPage() {
   const [pickedTask, setPickedTask] = React.useState("");
   const [deleteOpen, setDeleteOpen] = React.useState(false);
   const [deleting, setDeleting] = React.useState(false);
-  const [reloadTick, setReloadTick] = React.useState(0); // manual refetch trigger
 
   // Load recording toggle state on mount.
   React.useEffect(() => {
@@ -176,7 +176,9 @@ export default function LLMRecordsPage() {
         setRecEnabled(!!s.llm_record);
         setRecKnown(true);
       })
-      .catch(() => {});
+      .catch(() => {
+        // Leave the recording toggle unknown when settings cannot be loaded.
+      });
     return () => { alive = false; };
   }, []);
 
@@ -195,14 +197,12 @@ export default function LLMRecordsPage() {
 
   // Debounce session filter.
   React.useEffect(() => {
-    const t = setTimeout(() => setSessionQ(session.trim()), 300);
+    const t = setTimeout(() => {
+      setSessionQ(session.trim());
+      setPage(0);
+    }, 300);
     return () => clearTimeout(t);
   }, [session]);
-
-  // Reset page on filter change.
-  React.useEffect(() => {
-    setPage(0);
-  }, [sessionQ, model, size, pickedTask]);
 
   // Load list.
   React.useEffect(() => {
@@ -215,14 +215,18 @@ export default function LLMRecordsPage() {
         setRecords(r.records ?? []);
         setTotal(r.total ?? 0);
       })
-      .catch(() => {})
+      .catch(() => {
+        // Keep the previous records while a refresh is unavailable.
+      })
       .finally(() => alive && setLoading(false));
     api
       .llmTasks()
       .then((r) => { if (alive) setTasks(r.tasks ?? []); })
-      .catch(() => {});
+      .catch(() => {
+        // Task choices are optional; keep the previous list.
+      });
     return () => { alive = false; };
-  }, [page, size, sessionQ, model, pickedTask, reloadTick]);
+  }, [page, size, sessionQ, model, pickedTask]);
 
   // Delete every LLM record for the picked task, then refetch.
   const confirmDelete = () => {
@@ -235,9 +239,8 @@ export default function LLMRecordsPage() {
         setDetail(null);
         setPickedTask("");
         setPage(0);
-        setReloadTick((t) => t + 1);
       })
-      .catch(() => {})
+      .catch((error) => toast.error((error as Error).message))
       .finally(() => setDeleting(false));
   };
 
@@ -253,7 +256,9 @@ export default function LLMRecordsPage() {
     api
       .llmRecordDetail(selected.id)
       .then((d) => { if (alive) setDetail(d); })
-      .catch(() => {})
+      .catch(() => {
+        // The selected record remains empty when its detail cannot be loaded.
+      })
       .finally(() => { if (alive) setDetailLoading(false); });
     return () => { alive = false; };
   }, [selected]);
@@ -288,9 +293,15 @@ export default function LLMRecordsPage() {
           placeholder={t("Model")}
           className="h-8 w-48"
           value={model}
-          onChange={(e) => setModel(e.target.value)}
+          onChange={(e) => {
+            setModel(e.target.value);
+            setPage(0);
+          }}
         />
-        <Select value={pickedTask} onValueChange={setPickedTask}>
+        <Select value={pickedTask} onValueChange={(task) => {
+          setPickedTask(task);
+          setPage(0);
+        }}>
           <SelectTrigger size="sm" className="w-56">
             <SelectValue placeholder={t("Select a task…")} />
           </SelectTrigger>
@@ -320,7 +331,10 @@ export default function LLMRecordsPage() {
           <Trash2Icon className="size-3.5" />
           {t("Delete task conversations")}
         </Button>
-        <Select value={String(size)} onValueChange={(v) => setSize(Number(v))}>
+        <Select value={String(size)} onValueChange={(v) => {
+          setSize(Number(v));
+          setPage(0);
+        }}>
           <SelectTrigger size="sm" className="w-28">
             <SelectValue />
           </SelectTrigger>

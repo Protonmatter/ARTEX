@@ -126,6 +126,7 @@ export default function LogsPage() {
     );
   }, [lines, q, level]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: filtered changing is the signal to keep the log view pinned to the bottom.
   React.useEffect(() => {
     if (stick.current && !paused) bottom.current?.scrollIntoView();
   }, [filtered, paused]);

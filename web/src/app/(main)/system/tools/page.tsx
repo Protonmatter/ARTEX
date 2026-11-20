@@ -221,8 +221,9 @@ function ToolEditor({
             <Label className="text-muted-foreground text-xs">{t("Bind agents (controls which agents get this tool)")}</Label>
             <div className="flex flex-wrap gap-3">
               {agents.map((ag) => (
-                <label key={ag.key} className="flex items-center gap-2 text-sm">
+                <label key={ag.key} htmlFor={`tool-bind-${tool.key}-${ag.key}`} className="flex items-center gap-2 text-sm">
                   <Checkbox
+                    id={`tool-bind-${tool.key}-${ag.key}`}
                     checked={bound.includes(ag.key)}
                     disabled={trafficGated}
                     onCheckedChange={() => toggleAgent(ag.key)}
@@ -386,8 +387,12 @@ export default function ToolsPage() {
   }, []);
   React.useEffect(() => {
     reload();
-    api.agents().then(setAgents).catch(() => {});
-    api.settings().then((s) => setCaptureOn(!!s.traffic_capture)).catch(() => {});
+    api.agents().then(setAgents).catch(() => {
+      // Keep the current optional agent list on failure.
+    });
+    api.settings().then((s) => setCaptureOn(!!s.traffic_capture)).catch(() => {
+      // Keep the previous capture gate state on failure.
+    });
   }, [reload]);
 
   const [query, setQuery] = React.useState("");
@@ -777,8 +782,8 @@ function CustomToolDialog({
                   <Label className="text-xs">{t("Proxy URL (empty = direct)")}</Label>
                   <Input className="font-mono text-xs w-56" value={ex.proxy} onChange={(e) => setEx({ ...ex, proxy: e.target.value })} />
                 </div>
-                <label className="mt-4 flex items-center gap-2 text-sm">
-                  <Checkbox checked={ex.use_recording_proxy} onCheckedChange={(v) => setEx({ ...ex, use_recording_proxy: !!v })} />
+                <label htmlFor="custom-tool-recording-proxy" className="mt-4 flex items-center gap-2 text-sm">
+                  <Checkbox id="custom-tool-recording-proxy" checked={ex.use_recording_proxy} onCheckedChange={(v) => setEx({ ...ex, use_recording_proxy: !!v })} />
                   {t("Use recording proxy")}
                 </label>
               </div>
@@ -811,8 +816,8 @@ function CustomToolDialog({
             <Label className="text-muted-foreground text-xs">{t("Bind agents")}</Label>
             <div className="flex flex-wrap gap-3">
               {agents.map((a) => (
-                <label key={a.key} className="flex items-center gap-2 text-sm">
-                  <Checkbox checked={bound.includes(a.key)} onCheckedChange={() => toggleAgent(a.key)} />
+                <label key={a.key} htmlFor={`custom-tool-agent-${a.key}`} className="flex items-center gap-2 text-sm">
+                  <Checkbox id={`custom-tool-agent-${a.key}`} checked={bound.includes(a.key)} onCheckedChange={() => toggleAgent(a.key)} />
                   {a.name}<span className="text-muted-foreground font-mono text-xs">{a.key}</span>
                 </label>
               ))}
@@ -820,12 +825,12 @@ function CustomToolDialog({
           </div>
 
           <div className="flex items-center gap-6">
-            <label className="flex items-center gap-2 text-sm">
-              <Switch checked={enabled} onCheckedChange={setEnabled} /> {t("Enable")}
+            <label htmlFor="custom-tool-enabled" className="flex items-center gap-2 text-sm">
+              <Switch id="custom-tool-enabled" checked={enabled} onCheckedChange={setEnabled} /> {t("Enable")}
             </label>
             {kind !== "shell" && (
-              <label className="flex items-center gap-2 text-sm">
-                <Switch checked={deferred} onCheckedChange={setDeferred} /> {t("deferred (enable only for many rarely-used tools)")}
+              <label htmlFor="custom-tool-deferred" className="flex items-center gap-2 text-sm">
+                <Switch id="custom-tool-deferred" checked={deferred} onCheckedChange={setDeferred} /> {t("deferred (enable only for many rarely-used tools)")}
               </label>
             )}
           </div>

@@ -259,12 +259,12 @@ function JudgeCard() {
   }, []);
 
   React.useEffect(() => {
-    load();
+    void load();
   }, [load]);
 
   // Once enabled (including when the first load reads the switch as true), fetch approval usage stats.
   React.useEffect(() => {
-    if (cfg.enabled) loadUsage();
+    if (cfg.enabled) void loadUsage();
   }, [cfg.enabled, loadUsage]);
 
   function patch(p: Partial<JudgeConfig>) {
@@ -515,7 +515,7 @@ export default function InterceptPage() {
     }
   }, []);
 
-  React.useEffect(() => { load(); loadScope(); }, [load, loadScope]);
+  React.useEffect(() => { void load(); void loadScope(); }, [load, loadScope]);
 
   React.useEffect(() => {
     if (form.match_type !== "regex" || !form.pattern) { setRegexErr(""); setRegexWarn(false); return; }
@@ -569,7 +569,7 @@ export default function InterceptPage() {
         toast.success(t("Rule created"));
       }
       setOpen(false);
-      load();
+      void load();
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
@@ -581,7 +581,7 @@ export default function InterceptPage() {
     try {
       await api.deleteInterceptRule(id);
       toast.success(t("Rule deleted"));
-      load();
+      void load();
     } catch (e) {
       toast.error((e as Error).message);
     }
@@ -590,7 +590,7 @@ export default function InterceptPage() {
   async function handleToggle(rule: InterceptRule) {
     try {
       await api.toggleInterceptRule(rule.id, !rule.enabled);
-      load();
+      void load();
     } catch (e) {
       toast.error((e as Error).message);
     }

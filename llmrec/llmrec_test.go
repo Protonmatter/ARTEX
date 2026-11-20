@@ -151,7 +151,7 @@ func (meteredStreamProvider) Stream(context.Context, llm.CompletionRequest) iter
 }
 
 func TestSideUsageRecordedOnceOnConsumerCancellation(t *testing.T) {
-	// Timing-sensitive on 2-core CI runners (BaaRai/ARTEX#9). Repro:
+	// Timing-sensitive on 2-core CI runners. Repro:
 	//   RECONRIVET_PG_DSN=postgres://reconrivet:testpass@localhost:5432/reconrivettest_race \
 	//     go test ./llmrec -run TestSideUsageRecordedOnceOnConsumerCancellation -count=20 -race -v
 	// The `early=` t.Fatalf assertion below compares the single llm_usage row's
@@ -159,7 +159,7 @@ func TestSideUsageRecordedOnceOnConsumerCancellation(t *testing.T) {
 	// occasionally comes back "ok" instead of "error" because the consumer's
 	// cancellation and the recorder's deferred finish race on a loaded runner.
 	// Keep the skip until the metering status is made cancellation-explicit.
-	t.Skip("timing-sensitive on CI runners; repro and failing assertion documented above; BaaRai/ARTEX#9")
+	t.Skip("timing-sensitive on CI runners; repro and failing assertion documented above")
 	dsn := os.Getenv("RECONRIVET_PG_DSN")
 	if dsn == "" {
 		t.Skip("requires isolated RECONRIVET_PG_DSN")

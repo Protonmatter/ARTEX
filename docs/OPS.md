@@ -85,6 +85,12 @@ Plan a short maintenance window for either rotation.
 - `scripts/verify.sh` — reproduces the CI checks locally (gofmt, build, vet, tests,
   web type-check and unit tests, shellcheck, python checks). `--full` adds `-race` and
   the web static build; `--go-only` / `--web-only` narrow the run.
+- `scripts/smoke_live.py <embedded-UI-binary>` — starts a fresh loopback process
+  against an isolated, empty PostgreSQL database named by `RECONRIVET_PG_DSN`.
+  It checks readiness, one-time setup, login, authenticated and anonymous health,
+  HAR export identity, and the embedded login page. CI builds the binary and runs
+  this check with disposable database and local data. The script terminates the
+  process and removes local data; the caller must drop the test database.
 - `./scripts/backup.sh --help` — backup options.
 
 When Postgres is not configured, database-dependent tests skip themselves; that is
