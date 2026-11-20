@@ -14,16 +14,16 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/Autumn-27/artex/agent"
+	"github.com/Protonmatter/ReconRivet/agent"
 )
 
 // Environment names the shims read. They carry no secret: the executor id, the real
 // bash path and the executor's home directory.
 const (
-	envExecBash = "ARTEX_EXEC_BASH"
-	envExecUID  = "ARTEX_EXEC_UID"
-	envExecGID  = "ARTEX_EXEC_GID"
-	envExecHome = "ARTEX_EXEC_HOME"
+	envExecBash = "RECONRIVET_EXEC_BASH"
+	envExecUID  = "RECONRIVET_EXEC_UID"
+	envExecGID  = "RECONRIVET_EXEC_GID"
+	envExecHome = "RECONRIVET_EXEC_HOME"
 )
 
 // execHomeDir is the executor's home under the data directory. The server's HOME
@@ -551,7 +551,7 @@ func InstallBashShim(p ExecPrivilege) error {
 	if self, err = filepath.EvalSymlinks(self); err != nil {
 		return fmt.Errorf("resolve the server binary: %w", err)
 	}
-	dir, err := os.MkdirTemp("", "artex-exec-")
+	dir, err := os.MkdirTemp("", "reconrivet-exec-")
 	if err != nil {
 		return fmt.Errorf("create the shim directory: %w", err)
 	}
@@ -575,7 +575,7 @@ func InstallBashShim(p ExecPrivilege) error {
 }
 
 // RunExecShimIfRequested makes the process a privilege-drop shim when it was started
-// as one: as bash through the PATH shim, or as artex __reconrivet-exec-drop for an MCP
+// as one: as bash through the PATH shim, or as reconrivet __reconrivet-exec-drop for an MCP
 // stdio command. It exits or execs the target; it returns only for an ordinary start.
 func RunExecShimIfRequested(argv []string) {
 	if len(argv) == 0 {
@@ -682,6 +682,6 @@ func shimExec(target string, argv []string) {
 }
 
 func shimFail(err error) {
-	fmt.Fprintf(os.Stderr, "artex: agent process not started: %v\n", err)
+	fmt.Fprintf(os.Stderr, "reconrivet: agent process not started: %v\n", err)
 	os.Exit(126)
 }

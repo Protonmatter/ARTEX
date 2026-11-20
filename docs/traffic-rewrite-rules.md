@@ -143,7 +143,7 @@ Rules are never exposed as an agent tool.
 Rules live in the PostgreSQL table `traffic_rewrite_rules` (migration
 `0005_traffic_rewrite_rules.sql`). They are global configuration and are not part of a task
 archive. The `matchers` and `actions` columns are encrypted at rest with the instance secret key,
-like the other stored secrets: a database backup without `keys/secret.key` (or `ARTEX_SECRET_KEY`)
+like the other stored secrets: a database backup without `keys/secret.key` (or `RECONRIVET_SECRET_KEY`)
 cannot restore them, and ReconRivet refuses to start under a key that cannot open them.
 
 The server compiles the enabled rules into an immutable snapshot at startup and after every rule

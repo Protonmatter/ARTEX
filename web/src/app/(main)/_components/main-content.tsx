@@ -34,14 +34,14 @@ function isFullBleed(pathname: string) {
   return normalized.startsWith("/function/tasks/");
 }
 
-const RELEASES_URL = "https://github.com/Protonmatter/ARTEX/releases";
+const RELEASES_URL = "https://github.com/Protonmatter/ReconRivet/releases";
 const UPDATE_DISMISSED_KEY = "reconrivet-update-dismissed";
 
 export function MainContent({ children }: { children: ReactNode }) {
   const currentUser = useCurrentUser();
   const pathname = usePathname();
   const [version, setVersion] = useState("");
-  // Only set when the backend has the opt-in update check on (ARTEX_UPDATE_CHECK) and found a newer release.
+  // Only set when the backend has the opt-in update check on (RECONRIVET_UPDATE_CHECK) and found a newer release.
   const [latest, setLatest] = useState("");
 
   useEffect(() => {

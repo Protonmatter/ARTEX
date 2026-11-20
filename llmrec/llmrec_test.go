@@ -6,9 +6,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/Autumn-27/artex/db"
 	"github.com/Autumn-27/norma/llm"
 	"github.com/Autumn-27/norma/transcript"
+	"github.com/Protonmatter/ReconRivet/db"
 	"github.com/google/uuid"
 )
 
@@ -152,7 +152,7 @@ func (meteredStreamProvider) Stream(context.Context, llm.CompletionRequest) iter
 
 func TestSideUsageRecordedOnceOnConsumerCancellation(t *testing.T) {
 	// Timing-sensitive on 2-core CI runners (BaaRai/ARTEX#9). Repro:
-	//   ARTEX_PG_DSN=postgres://artex:testpass@localhost:5432/artextest_race \
+	//   RECONRIVET_PG_DSN=postgres://reconrivet:testpass@localhost:5432/reconrivettest_race \
 	//     go test ./llmrec -run TestSideUsageRecordedOnceOnConsumerCancellation -count=20 -race -v
 	// The `early=` t.Fatalf assertion below compares the single llm_usage row's
 	// count/input/output/worker/status; in the `early` branch the status
@@ -160,9 +160,9 @@ func TestSideUsageRecordedOnceOnConsumerCancellation(t *testing.T) {
 	// cancellation and the recorder's deferred finish race on a loaded runner.
 	// Keep the skip until the metering status is made cancellation-explicit.
 	t.Skip("timing-sensitive on CI runners; repro and failing assertion documented above; BaaRai/ARTEX#9")
-	dsn := os.Getenv("ARTEX_PG_DSN")
+	dsn := os.Getenv("RECONRIVET_PG_DSN")
 	if dsn == "" {
-		t.Skip("requires isolated ARTEX_PG_DSN")
+		t.Skip("requires isolated RECONRIVET_PG_DSN")
 	}
 	pg, err := db.Open(dsn)
 	if err != nil {

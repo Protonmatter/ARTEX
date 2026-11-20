@@ -25,10 +25,6 @@ const oldPassword = "abcd1234"
 // loginServer returns a Server whose login reads a stored hash of oldPassword
 // from a stub instead of PostgreSQL.
 func loginServer(t *testing.T, clk *fakeClock) (*Server, func(remote, password string, hdr map[string]string) *httptest.ResponseRecorder) {
-	return loginServerForUsername(t, clk, "ReconRivet")
-}
-
-func loginServerForUsername(t *testing.T, clk *fakeClock, username string) (*Server, func(remote, password string, hdr map[string]string) *httptest.ResponseRecorder) {
 	t.Helper()
 	hash, err := bcrypt.GenerateFromPassword([]byte(oldPassword), bcrypt.MinCost)
 	if err != nil {
@@ -42,7 +38,7 @@ func loginServerForUsername(t *testing.T, clk *fakeClock, username string) (*Ser
 	}
 	s := &Server{jwtKey: []byte("0123456789abcdef0123456789abcdef"), loginLimit: newLoginLimiter(clk.now), pwdLimit: newLoginLimiter(clk.now)}
 	post := func(remote, password string, hdr map[string]string) *httptest.ResponseRecorder {
-		body := fmt.Sprintf(`{"username":%q,"password":%q}`, username, password)
+		body := fmt.Sprintf(`{"username":"ReconRivet","password":%q}`, password)
 		r := httptest.NewRequest("POST", "/api/auth/login", strings.NewReader(body))
 		r.RemoteAddr = remote
 		for k, v := range hdr {
@@ -53,23 +49,6 @@ func loginServerForUsername(t *testing.T, clk *fakeClock, username string) (*Ser
 		return w
 	}
 	return s, post
-}
-
-func TestLegacyUsernameStillAccepted(t *testing.T) {
-	s, post := loginServerForUsername(t, newFakeClock(), "ARTEX")
-	w := post("192.0.2.10:40000", oldPassword, nil)
-	if w.Code != 200 {
-		t.Fatalf("legacy login status=%d, want 200: %s", w.Code, w.Body.String())
-	}
-	var body struct {
-		Token string `json:"token"`
-	}
-	if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
-		t.Fatal(err)
-	}
-	if got := jwtSubject(body.Token, s.jwtKey); got != "ReconRivet" {
-		t.Fatalf("legacy login subject=%q, want ReconRivet", got)
-	}
 }
 
 func failN(t *testing.T, post func(string, string, map[string]string) *httptest.ResponseRecorder, remote string, n int) {

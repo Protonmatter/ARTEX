@@ -1057,7 +1057,7 @@ export interface Settings {
   // Render limits of IM messages; 0 = no truncation. The backend answers 400 outside the bounds.
   notify_summary_max_runes?: number; // summary characters per finding, 0-4000, default 120
   notify_assets_max_shown?: number; // asset names listed per finding, 0-50, default 3
-  // Target noise profile; the stored setting wins over ARTEX_NOISE_PROFILE. Applies to the next request.
+  // Target noise profile; the stored setting wins over RECONRIVET_NOISE_PROFILE. Applies to the next request.
   noise_profile?: NoiseProfileName;
 }
 

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Autumn-27/artex/traffic"
+	"github.com/Protonmatter/ReconRivet/traffic"
 )
 
 func TestTrafficHAREndpointsRoundTripFilterAndErrors(t *testing.T) {

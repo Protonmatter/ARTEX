@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Autumn-27/artex/egress"
+	"github.com/Protonmatter/ReconRivet/egress"
 )
 
 func TestRenderNoiseProfileOff(t *testing.T) {
@@ -62,7 +62,7 @@ func TestPromptBuildersNoiseBlock(t *testing.T) {
 	prev := egress.CurrentProfile()
 	t.Cleanup(func() { egress.SetProfile(prev) })
 	// The block follows the current profile, not the environment.
-	t.Setenv("ARTEX_NOISE_PROFILE", "aggressive")
+	t.Setenv("RECONRIVET_NOISE_PROFILE", "aggressive")
 	egress.SetProfile(egress.Profile{Name: "off"})
 	for name, build := range builders {
 		if got := build(); strings.Contains(got, noiseProfileHeader) {

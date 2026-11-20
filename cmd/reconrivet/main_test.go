@@ -6,19 +6,19 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Autumn-27/artex/agent"
+	"github.com/Protonmatter/ReconRivet/agent"
 )
 
 // The snapshot must be serializable and must not add fields. Password masking
 // itself is config.Redact's contract, covered by config/config_test.go;
-// cmd/artex only passes its result through to the log line.
+// cmd/reconrivet only passes its result through to the log line.
 func TestConfigSnapshotSerializesRedactedDSN(t *testing.T) {
-	redacted := "postgres://artex:***@localhost:5432/artex?sslmode=disable"
+	redacted := "postgres://reconrivet:***@localhost:5432/reconrivet?sslmode=disable"
 	s := configSnapshot{
 		Version:         "test",
 		ConfigFileFound: true,
 		PGDSN:           redacted,
-		PGDSNSource:     "environment variable ARTEX_PG_DSN",
+		PGDSNSource:     "environment variable RECONRIVET_PG_DSN",
 		TrustedProxies:  []string{},
 	}
 	b, err := json.Marshal(s)

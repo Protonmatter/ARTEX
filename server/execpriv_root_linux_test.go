@@ -20,8 +20,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Autumn-27/artex/agent"
 	actool "github.com/Autumn-27/norma/tool"
+	"github.com/Protonmatter/ReconRivet/agent"
 )
 
 // Root tests of the three executor paths: the Bash tool through the PATH shim, a
@@ -51,7 +51,7 @@ func newExecRootFixture(t *testing.T) *execRootFixture {
 	// directory of the test is its own, world-writable and sticky like /tmp, so the
 	// host's <temp>/norma is never read or written. It cannot be t.TempDir(): the
 	// executor has to traverse it to reach the data directory below.
-	tmp, err := os.MkdirTemp("", "artex-exec-tmp-")
+	tmp, err := os.MkdirTemp("", "reconrivet-exec-tmp-")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -61,7 +61,7 @@ func newExecRootFixture(t *testing.T) *execRootFixture {
 	}
 	t.Setenv("TMPDIR", tmp)
 	// A data directory like /app/data: root-owned and traversable.
-	dataDir, err := os.MkdirTemp("", "artex-exec-root-")
+	dataDir, err := os.MkdirTemp("", "reconrivet-exec-root-")
 	if err != nil {
 		t.Fatal(err)
 	}

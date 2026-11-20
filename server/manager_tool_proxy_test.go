@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Autumn-27/artex/db"
-	"github.com/Autumn-27/artex/traffic"
+	"github.com/Protonmatter/ReconRivet/db"
+	"github.com/Protonmatter/ReconRivet/traffic"
 )
 
 // ProxyAddr is the one source of truth for "is there a proxy in the path":

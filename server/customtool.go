@@ -18,13 +18,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Autumn-27/artex/db"
-	"github.com/Autumn-27/artex/egress"
-	"github.com/Autumn-27/artex/guard"
-	"github.com/Autumn-27/artex/intercept"
-	"github.com/Autumn-27/artex/notify"
 	"github.com/Autumn-27/norma/permission"
 	actool "github.com/Autumn-27/norma/tool"
+	"github.com/Protonmatter/ReconRivet/db"
+	"github.com/Protonmatter/ReconRivet/egress"
+	"github.com/Protonmatter/ReconRivet/guard"
+	"github.com/Protonmatter/ReconRivet/intercept"
+	"github.com/Protonmatter/ReconRivet/notify"
 )
 
 // This file implements the custom tool executor (docs/custom-tool-design.md). tools rows

@@ -18,7 +18,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 
-	"github.com/Autumn-27/artex/config"
+	"github.com/Protonmatter/ReconRivet/config"
 )
 
 const (
@@ -64,12 +64,12 @@ func validatePassword(pw string) string {
 }
 
 // jwtLegacyBaseDir is the second legacy key location (the executable's directory,
-// where releases before ARTEX_JWT_KEY_DIR wrote the key). A var so tests can point it
+// where releases before RECONRIVET_JWT_KEY_DIR wrote the key). A var so tests can point it
 // at a temp dir.
 var jwtLegacyBaseDir = config.BaseDir
 
 // loadOrCreateJWTKey reads the 32-byte signing key from keyDir/jwt.key. keyDir is
-// ARTEX_JWT_KEY_DIR (the /app/keys volume in Docker) or the project base dir, NOT
+// RECONRIVET_JWT_KEY_DIR (the /app/keys volume in Docker) or the project base dir, NOT
 // the browsable workspace root (dataDir) — the signing key must never be
 // listable/downloadable via the file manager. When keyDir/jwt.key is missing, a key
 // at dataDir/jwt.key, then at BaseDir()/jwt.key, is migrated (key preserved, so
@@ -271,15 +271,12 @@ func (s *Server) approver(r *http.Request) string {
 }
 
 // extractToken reads the JWT from Authorization: Bearer header,
-// reconrivet_token cookie (or legacy artex_token), or ?token= for SSE.
+// reconrivet_token cookie, or ?token= for SSE.
 func extractToken(r *http.Request) string {
 	if h := r.Header.Get("Authorization"); strings.HasPrefix(h, "Bearer ") {
 		return strings.TrimPrefix(h, "Bearer ")
 	}
 	if c, err := r.Cookie("reconrivet_token"); err == nil && c.Value != "" {
-		return c.Value
-	}
-	if c, err := r.Cookie("artex_token"); err == nil && c.Value != "" {
 		return c.Value
 	}
 	return r.URL.Query().Get("token")
@@ -585,7 +582,7 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request, getSetting func(s
 		writeErr(w, 400, "Invalid request format")
 		return
 	}
-	if req.Username != "ReconRivet" && req.Username != "ARTEX" {
+	if req.Username != "ReconRivet" {
 		writeErr(w, 401, "Incorrect username or password")
 		return
 	}

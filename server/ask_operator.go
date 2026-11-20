@@ -14,10 +14,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Autumn-27/artex/agent"
-	"github.com/Autumn-27/artex/db"
-	"github.com/Autumn-27/artex/intercept"
 	actool "github.com/Autumn-27/norma/tool"
+	"github.com/Protonmatter/ReconRivet/agent"
+	"github.com/Protonmatter/ReconRivet/db"
+	"github.com/Protonmatter/ReconRivet/intercept"
 )
 
 const askOperatorMaxImage = 10 << 20

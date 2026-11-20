@@ -8,15 +8,15 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Autumn-27/artex/egress"
+	"github.com/Protonmatter/ReconRivet/egress"
 )
 
 func TestNoiseProfileSettingHTTP(t *testing.T) {
 	skipWithoutDSN(t)
 	prev := egress.CurrentProfile()
 	t.Cleanup(func() { egress.SetProfile(prev) })
-	t.Setenv("ARTEX_NOISE_PROFILE", "quiet")
-	t.Setenv("ARTEX_TARGET_USER_AGENT", "reconrivet-noise-test/1")
+	t.Setenv("RECONRIVET_NOISE_PROFILE", "quiet")
+	t.Setenv("RECONRIVET_TARGET_USER_AGENT", "reconrivet-noise-test/1")
 
 	m, err := NewManager(t.TempDir(), "")
 	if err != nil {

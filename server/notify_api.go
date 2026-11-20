@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Autumn-27/artex/db"
-	"github.com/Autumn-27/artex/notify"
+	"github.com/Protonmatter/ReconRivet/db"
+	"github.com/Protonmatter/ReconRivet/notify"
 )
 
 // This file is the HTTP API for the notification delivery feature. All routes are

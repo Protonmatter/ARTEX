@@ -5,20 +5,20 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/Autumn-27/artex/db"
-	"github.com/Autumn-27/artex/guard"
-	"github.com/Autumn-27/artex/intercept"
 	"github.com/Autumn-27/norma/agentcore"
 	"github.com/Autumn-27/norma/llm"
 	"github.com/Autumn-27/norma/permission"
 	"github.com/Autumn-27/norma/tool"
+	"github.com/Protonmatter/ReconRivet/db"
+	"github.com/Protonmatter/ReconRivet/guard"
+	"github.com/Protonmatter/ReconRivet/intercept"
 )
 
 // Exercise the actual SDK event -> hook -> execution -> result path. No real
 // model or command is used; the probe tool only returns a fixed string.
 func TestCaptureApprovalLifecycle(t *testing.T) {
 	// Known failure with a freshly seeded database (BaaRai/ARTEX#9). Repro:
-	//   ARTEX_PG_DSN=postgres://artex:testpass@localhost:5432/artextest_agent \
+	//   RECONRIVET_PG_DSN=postgres://reconrivet:testpass@localhost:5432/reconrivettest_agent \
 	//     go test ./agent -run TestCaptureApprovalLifecycle -count=1 -v
 	// The checks after ListTaskIntercepts / GetInterceptDetail and the
 	// "unexpected review" t.Fatalf below fail before any other test has seeded

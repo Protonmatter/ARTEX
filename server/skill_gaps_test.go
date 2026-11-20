@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/Autumn-27/artex/db"
+	"github.com/Protonmatter/ReconRivet/db"
 )
 
 func TestSkillGapsReport(t *testing.T) {

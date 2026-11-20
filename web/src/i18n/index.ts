@@ -24,7 +24,6 @@ export const LOCALES: { code: Locale; label: string }[] = [
 ];
 
 const STORAGE_KEY = "reconrivet.locale";
-const LEGACY_STORAGE_KEY = "artex.locale";
 
 const DICTIONARIES: Record<Locale, Record<string, string>> = {
   tr: tr as Record<string, string>,
@@ -35,18 +34,7 @@ function detectLocale(): Locale {
   // Prerendering (static export) has no window: it renders the default locale.
   if (typeof window === "undefined") return DEFAULT_LOCALE;
   try {
-    let saved = window.localStorage.getItem(STORAGE_KEY);
-    if (saved === null) {
-      saved = window.localStorage.getItem(LEGACY_STORAGE_KEY);
-      if (saved === "tr" || saved === "en") {
-        try {
-          window.localStorage.setItem(STORAGE_KEY, saved);
-          window.localStorage.removeItem(LEGACY_STORAGE_KEY);
-        } catch {
-          // Keep using the saved locale even when the migration cannot be written.
-        }
-      }
-    }
+    const saved = window.localStorage.getItem(STORAGE_KEY);
     if (saved === "tr" || saved === "en") return saved;
   } catch {
     /* storage blocked: fall through to the browser language */
@@ -82,7 +70,6 @@ export function setLocale(next: Locale) {
   if (next === locale) return;
   try {
     window.localStorage.setItem(STORAGE_KEY, next);
-    window.localStorage.removeItem(LEGACY_STORAGE_KEY);
   } catch {
     /* storage blocked: the switch lasts only until the next load */
   }

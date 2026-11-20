@@ -6,14 +6,14 @@
 
 **Autonomous penetration testing that keeps its receipts.**
 
-[Protonmatter/ARTEX](https://github.com/Protonmatter/ARTEX) · AGPL-3.0
+[Protonmatter/ReconRivet](https://github.com/Protonmatter/ReconRivet) · AGPL-3.0
 
 Self-hosted multi-agent offensive security. A planner explores, workers run real tools,
 and every finding stays bound to the assets and HTTP traffic that prove it.
 
-[![License](https://img.shields.io/github/license/Protonmatter/ARTEX?color=6b34db)](LICENSE)
-[![CI](https://github.com/Protonmatter/ARTEX/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Protonmatter/ARTEX/actions/workflows/ci.yml)
-[![Go](https://img.shields.io/github/go-mod/go-version/Protonmatter/ARTEX?color=6b34db)](go.mod)
+[![License](https://img.shields.io/github/license/Protonmatter/ReconRivet?color=6b34db)](LICENSE)
+[![CI](https://github.com/Protonmatter/ReconRivet/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Protonmatter/ReconRivet/actions/workflows/ci.yml)
+[![Go](https://img.shields.io/github/go-mod/go-version/Protonmatter/ReconRivet?color=6b34db)](go.mod)
 
 [Quick start](#quick-start) · [Screenshots](#screenshots) · [How it works](#how-it-works) · [Install](#installation) · [Configuration](#configuration) · [Security](SECURITY.md)
 
@@ -27,12 +27,9 @@ results are written back into **two linked graphs**: one for what you know about
 for how the test is progressing. Every finding can carry the captured request and response that
 justify it, and every autonomous action passes through scope rules, approval gates and budgets.
 
-The repository, Go module, `artex` binary and Docker service, and `ARTEX_*` environment variables
-keep their existing names for deployment compatibility. New UI and protocol identifiers use
-ReconRivet. Existing administrator logins and `artex_token` sessions remain accepted; the web UI
-migrates a stored session to `reconrivet_token` on use. HAR imports accept the old
-`_artexExchangeId` field, while new exports use `_reconrivetExchangeId`. The Go
-`HAREntry.ArtexExchangeID` field remains available to existing callers.
+The repository, Go module, executable, Docker service, configuration variables, browser
+storage, and HAR identifiers all use ReconRivet names. This branch targets fresh
+installations; it does not migrate data or configuration from earlier names.
 
 - **It explores, it doesn't chat.** Goal decomposition, intent dispatch, worker execution and
   write-back form a closed loop that keeps advancing until the goal is proven.
@@ -50,8 +47,8 @@ migrates a stored session to `reconrivet_token` on use. HAR imports accept the o
 ## Quick start
 
 ```bash
-git clone https://github.com/Protonmatter/ARTEX.git
-cd ARTEX
+git clone https://github.com/Protonmatter/ReconRivet.git
+cd ReconRivet
 cp .env.example .env            # set POSTGRES_PASSWORD (and optionally an LLM key)
 docker compose up -d --build    # builds from this checkout, starts PostgreSQL
 ```
@@ -60,7 +57,7 @@ Open **http://localhost:8787**. On the first visit `/setup` asks for the one-tim
 printed at startup:
 
 ```bash
-docker compose logs artex | grep "Setup token"
+docker compose logs reconrivet | grep "Setup token"
 ```
 
 > There is no prebuilt Docker image to pull: the image is always built from your checkout.
@@ -262,19 +259,19 @@ worker remains confined to the intent it claimed.
 - **Scope and target gate**: scope rows define the coverage denominator; assets outside the
   declared scope are not explored. The target gate (off by default, API-only) can refuse
   destinations that were not approved.
-- **Budgets**: `ARTEX_TASK_BUDGET_TOKENS` / `ARTEX_TASK_BUDGET_TURNS` cap a whole task (planner and
-  workers); `ARTEX_INTENT_BUDGET_TOKENS` / `ARTEX_INTENT_BUDGET_TURNS` cap one worker run. Near the
+- **Budgets**: `RECONRIVET_TASK_BUDGET_TOKENS` / `RECONRIVET_TASK_BUDGET_TURNS` cap a whole task (planner and
+  workers); `RECONRIVET_INTENT_BUDGET_TOKENS` / `RECONRIVET_INTENT_BUDGET_TURNS` cap one worker run. Near the
   limit the task enters a forced wrap-up; a worker is not started when the remaining budget cannot
   cover it. Spend already in `llm_usage` is restored after a restart. A task that is already inside
   the wrap-up reserve only has that reserve left, so the revived run wraps up instead of starting
   another worker. The per-worker cost estimate starts again from the defaults (50,000 tokens and
   10 turns) until a worker finishes in this process.
-- **Noise governor**: `ARTEX_NOISE_PROFILE=quiet|balanced|aggressive` paces requests ReconRivet sends to
+- **Noise governor**: `RECONRIVET_NOISE_PROFILE=quiet|balanced|aggressive` paces requests ReconRivet sends to
   targets (per-host rate, burst, in-flight limit, jitter, backoff on 429/503, short GET caching).
   With a profile set, agents also receive low-and-slow flags for the installed scanners.
 - **Untrusted-output boundary (on by default)**: tool results are framed between nonce-tagged
   markers so the model treats them as data, not instructions. Disable with
-  `ARTEX_UNTRUSTED_BOUNDARY=0`.
+  `RECONRIVET_UNTRUSTED_BOUNDARY=0`.
 
 ### Assets and coverage
 
@@ -321,8 +318,8 @@ worker remains confined to the intent it claimed.
 ### Option 1: one-click install script (recommended)
 
 ```bash
-git clone https://github.com/Protonmatter/ARTEX.git
-cd ARTEX
+git clone https://github.com/Protonmatter/ReconRivet.git
+cd ReconRivet
 ./install.sh
 ```
 
@@ -331,17 +328,17 @@ The script detects or installs Docker, then offers **① all-Docker** (writes `.
 embedded binary, starts it).
 
 Open **http://localhost:8787**; `/setup` asks for the one-time setup token printed at startup
-(`docker compose logs artex | grep "Setup token"`).
+(`docker compose logs reconrivet | grep "Setup token"`).
 
 The UI listens on `127.0.0.1` by default. To reach it from another machine (or from Windows when
-ReconRivet runs inside WSL), set `ARTEX_BIND_ADDR=0.0.0.0` in `.env` (the setup token still protects the
+ReconRivet runs inside WSL), set `RECONRIVET_BIND_ADDR=0.0.0.0` in `.env` (the setup token still protects the
 first-run claim), or keep loopback and use a reverse proxy or SSH tunnel.
 
 ### Option 2: Docker Compose (manual)
 
 ```bash
-git clone https://github.com/Protonmatter/ARTEX.git
-cd ARTEX
+git clone https://github.com/Protonmatter/ReconRivet.git
+cd ReconRivet
 cp .env.example .env            # set POSTGRES_PASSWORD, optionally ANTHROPIC_API_KEY
 docker compose up -d --build
 # → http://localhost:8787
@@ -356,11 +353,11 @@ Legacy SSE servers usually establish the event stream with `GET /sse` and receiv
 
 ### Option 3: prebuilt binaries
 
-[Protonmatter/ARTEX](https://github.com/Protonmatter/ARTEX) does not publish prebuilt archives yet.
+[Protonmatter/ReconRivet](https://github.com/Protonmatter/ReconRivet) does not publish prebuilt archives yet.
 Install from this checkout with option 1, 2, or 4.
 
 When a release is published, it will be listed on
-[Releases](https://github.com/Protonmatter/ARTEX/releases) and will contain `artex`, `start.sh`
+[Releases](https://github.com/Protonmatter/ReconRivet/releases) and will contain `reconrivet`, `start.sh`
 (`start.bat` on Windows), `skills/` and `config.example.json`:
 
 ```bash
@@ -368,18 +365,18 @@ cp config.example.json config.json   # fill in the database connection
 ./start.sh                           # → http://localhost:8787
 ```
 
-Start with `start.sh` / `start.bat`, not `./artex`: it is a daemon script that restarts the process
-after a backoff. To keep it in the background: `nohup ./start.sh >artex.log 2>&1 &`.
+Start with `start.sh` / `start.bat`, not `./reconrivet`: it is a daemon script that restarts the process
+after a backoff. To keep it in the background: `nohup ./start.sh >reconrivet.log 2>&1 &`.
 
 #### Verifying a release
 
-A published release attaches `SHA256SUMS` and a CycloneDX SBOM, `artex-<tag>.cdx.json` (Go modules
+A published release attaches `SHA256SUMS` and a CycloneDX SBOM, `reconrivet-<tag>.cdx.json` (Go modules
 in the linux/amd64 binary, the frontend `package-lock.json`, `go.mod`/`go.sum`), next to the zips.
 The zips also carry a GitHub build provenance attestation.
 
 ```bash
 sha256sum -c SHA256SUMS                           # add --ignore-missing if you downloaded only some zips
-gh attestation verify <zip> --repo Protonmatter/ARTEX
+gh attestation verify <zip> --repo Protonmatter/ReconRivet
 ```
 
 ### Option 4: build the single binary from source
@@ -387,7 +384,7 @@ gh attestation verify <zip> --repo Protonmatter/ARTEX
 ```bash
 cd web && npm ci && npm run build:static && cd ..
 cp -r web/out server/webui/dist
-CGO_ENABLED=0 go build -tags embedui -o artex ./cmd/artex
+CGO_ENABLED=0 go build -tags embedui -o reconrivet ./cmd/reconrivet
 ./start.sh
 ```
 
@@ -400,9 +397,9 @@ amd64/arm64, macOS amd64/arm64 and Windows amd64 by default:
 
 ```bash
 ./build.sh --release
-# output: dist/artex-<version>-*.zip
+# output: dist/reconrivet-<version>-*.zip
 
-ARTEX_TARGETS=linux/amd64,windows/amd64 ./build.sh --release
+RECONRIVET_TARGETS=linux/amd64,windows/amd64 ./build.sh --release
 ./build.sh --target linux/amd64 --upx
 ```
 
@@ -414,14 +411,14 @@ runtime supports it.
 
 ## Configuration
 
-**Database** (`config.json`, or the `ARTEX_PG_DSN` environment variable):
+**Database** (`config.json`, or the `RECONRIVET_PG_DSN` environment variable):
 
 ```json
 {
   "database": {
     "host": "127.0.0.1", "port": 5432,
-    "user": "artex", "password": "yourpass",
-    "dbname": "artex", "sslmode": "disable"
+    "user": "reconrivet", "password": "yourpass",
+    "dbname": "reconrivet", "sslmode": "disable"
   }
 }
 ```
@@ -429,8 +426,8 @@ runtime supports it.
 **LLM**: `export ANTHROPIC_API_KEY=sk-...` (or `OPENAI_API_KEY`), or configure it in the UI's
 "LLM Configuration" page, which can also add a local Ollama server as a keyless provider (format
 "Ollama", default base URL `http://127.0.0.1:11434/v1`). Optional:
-`ARTEX_LLM_PROVIDER` (`anthropic | openai | openai-responses | ollama`), `ARTEX_LLM_MODEL`,
-`ARTEX_LLM_BASE_URL`, `ARTEX_LLM_PROXY`.
+`RECONRIVET_LLM_PROVIDER` (`anthropic | openai | openai-responses | ollama`), `RECONRIVET_LLM_MODEL`,
+`RECONRIVET_LLM_BASE_URL`, `RECONRIVET_LLM_PROXY`.
 
 **Base URL gotcha**: for the Anthropic format, enter the host **without** `/v1` (for example
 `https://api.anthropic.com`); ReconRivet appends `/v1/messages`. OpenAI-format providers append
@@ -449,16 +446,16 @@ base URL `https://api.notholy.com/v1` with an API key from its console.
 
 **Untrusted-output boundary (on by default)**: tool results for the worker, planner, chat and main
 agent are framed between nonce-tagged markers so the model treats them as data, not instructions.
-Unset or empty, the boundary is on; set `ARTEX_UNTRUSTED_BOUNDARY=0` (or `false` / `off` / `no`) to
+Unset or empty, the boundary is on; set `RECONRIVET_UNTRUSTED_BOUNDARY=0` (or `false` / `off` / `no`) to
 disable it. Cost: about 154 bytes per tool result plus one system note.
 
-**Noise profile (off by default)**: `ARTEX_NOISE_PROFILE` paces the requests ReconRivet sends to targets
+**Noise profile (off by default)**: `RECONRIVET_NOISE_PROFILE` paces the requests ReconRivet sends to targets
 (WebFetch, HTTP custom tools, the enrich probe). Unset or `off` keeps today's behaviour: no limit,
 no cache. `quiet` = 2 req/s per host (burst 4, 1 in flight), `balanced` = 5 req/s (burst 10, 2 in
 flight), `aggressive` = 20 req/s (burst 40, 4 in flight). A profile adds jitter, backs off on
 429/503 (honours `Retry-After`, bounded retries, GET/HEAD/OPTIONS only), deduplicates identical
 in-flight GETs and caches them briefly (60/30/10 s; never POST/PUT/PATCH/DELETE), and logs a
-per-host noise line each minute. `ARTEX_TARGET_USER_AGENT` sets a User-Agent on target requests
+per-host noise line each minute. `RECONRIVET_TARGET_USER_AGENT` sets a User-Agent on target requests
 that carry none. With traffic capture on, Bash commands that use the proxy (curl, wget,
 python-requests) are paced too, per host by the same rate and jitter, and counted in the same
 per-host lines. The in-flight caps, retries and cache apply only to ReconRivet's own requests. This is
@@ -467,16 +464,16 @@ command that bypasses the proxy (`--noproxy`, a removed proxy variable). With ca
 nothing launched from Bash is paced. The low-and-slow prompt block supplies the rate flags in
 every case.
 The **Target noise** card in System settings sets the profile at runtime (no restart) and shows the
-per-host counters; once saved, that setting takes precedence over `ARTEX_NOISE_PROFILE`.
+per-host counters; once saved, that setting takes precedence over `RECONRIVET_NOISE_PROFILE`.
 
 **Low-and-slow agent guidance (off by default)**: when a noise profile is set, the planner, worker,
 main agent and chat agents receive a code-owned prompt block with the profile's per-host limits and
 exact rate/delay flags for the installed scanners. It tells them to test one host at a time, back
 off on 429/503 and never raise the rate to meet a deadline.
 
-**Run budgets (off by default)**: `ARTEX_TASK_BUDGET_TOKENS` / `ARTEX_TASK_BUDGET_TURNS` cap a
-task's total spend (planner rounds and workers); `ARTEX_INTENT_BUDGET_TOKENS` /
-`ARTEX_INTENT_BUDGET_TURNS` cap one worker run. Unset or `0` means unlimited. A worker is not
+**Run budgets (off by default)**: `RECONRIVET_TASK_BUDGET_TOKENS` / `RECONRIVET_TASK_BUDGET_TURNS` cap a
+task's total spend (planner rounds and workers); `RECONRIVET_INTENT_BUDGET_TOKENS` /
+`RECONRIVET_INTENT_BUDGET_TURNS` cap one worker run. Unset or `0` means unlimited. A worker is not
 started when the remaining task budget cannot cover its estimated cost (the average of finished
 workers, else 50,000 tokens and 10 turns). Near the wrap-up reserve (the larger of 5% and 20,000
 tokens, and 2 turns) the task enters a forced wrap-up: the planner writes a summary and final goal
@@ -531,15 +528,15 @@ server {
 **Login rate limit behind a proxy**: login allows 10 attempts per minute per client IP. Behind a
 proxy every request comes from the proxy's address, so without further setup all users share one
 budget and an attacker who fails 10 logins blocks everyone, admin included, for up to 15 minutes.
-Keep the `X-Forwarded-For` line and set `ARTEX_TRUSTED_PROXIES` (comma-separated CIDRs, empty by
+Keep the `X-Forwarded-For` line and set `RECONRIVET_TRUSTED_PROXIES` (comma-separated CIDRs, empty by
 default) to the address ReconRivet sees the proxy connect from:
 
 - **nginx and ReconRivet both on the host** (binary, `./start.sh`): the peer is `127.0.0.1`; start ReconRivet
-  with `ARTEX_TRUSTED_PROXIES=127.0.0.1/32`.
+  with `RECONRIVET_TRUSTED_PROXIES=127.0.0.1/32`.
 - **nginx on the host, ReconRivet in Docker** (`docker-compose.yml`): the connection reaches the
   container from the Docker bridge gateway (a `172.x` address), not from `127.0.0.1`. Find it with
-  `docker network inspect artex_default --format '{{(index .IPAM.Config 0).Gateway}}'` (the network
-  is `<project directory>_default`), put `ARTEX_TRUSTED_PROXIES=<gateway>/32` in `.env`, then
+  `docker network inspect reconrivet_default --format '{{(index .IPAM.Config 0).Gateway}}'` (the network
+  is `<project directory>_default`), put `RECONRIVET_TRUSTED_PROXIES=<gateway>/32` in `.env`, then
   `docker compose up -d`.
 
 For a peer in that list, ReconRivet reads `X-Forwarded-For` from the right and takes the first address
@@ -567,7 +564,7 @@ scripts/backup.sh --keep 7             # db only, keep 7
 Restore into a running stack:
 
 ```bash
-gunzip -c backups/artex-db-<timestamp>.sql.gz | docker compose exec -T postgres \
+gunzip -c backups/reconrivet-db-<timestamp>.sql.gz | docker compose exec -T postgres \
   psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 ```
 
@@ -577,13 +574,13 @@ capture-proxy rewrite rules) are
 encrypted in the database with the key in `keys/secret.key` (generated at first start, mode 0600,
 next to `jwt.key`). **A database backup without that key cannot restore those secrets**: back up
 `keys/` with the dump, separately. Deployments without a persistent disk set
-`ARTEX_SECRET_KEY` (32 bytes, base64 or hex, e.g. `openssl rand -base64 32`). ReconRivet refuses to start
+`RECONRIVET_SECRET_KEY` (32 bytes, base64 or hex, e.g. `openssl rand -base64 32`). ReconRivet refuses to start
 when the database holds encrypted secrets and no key is available.
 
 Daily cron example (03:20, operator crontab):
 
 ```
-20 3 * * * cd /path/to/ARTEX && scripts/backup.sh --with-data >> backups/backup.log 2>&1
+20 3 * * * cd /path/to/ReconRivet && scripts/backup.sh --with-data >> backups/backup.log 2>&1
 ```
 
 ### Updating and upgrading
@@ -595,11 +592,11 @@ Daily cron example (03:20, operator crontab):
 > in its own transaction. Restarting the new binary is the upgrade. Back up `./data`, `keys/` and
 > the database before upgrading.
 
-**Update banner (opt-in, off by default)**: start ReconRivet with `ARTEX_UPDATE_CHECK=1` to ask
-[Protonmatter/ARTEX](https://github.com/Protonmatter/ARTEX) for its latest release tag, at most
+**Update banner (opt-in, off by default)**: start ReconRivet with `RECONRIVET_UPDATE_CHECK=1` to ask
+[Protonmatter/ReconRivet](https://github.com/Protonmatter/ReconRivet) for its latest release tag, at most
 once per 24 hours (cached in memory; a failed check is not retried within that window). When the
 release is newer, the web UI shows a dismissible strip linking to
-[Releases](https://github.com/Protonmatter/ARTEX/releases). The request sends only
+[Releases](https://github.com/Protonmatter/ReconRivet/releases). The request sends only
 `User-Agent: reconrivet-update-check`. Unset, ReconRivet makes no update request and shows no banner.
 No release is published yet, so the banner stays empty until one is.
 
@@ -621,32 +618,32 @@ Your data is unaffected: `./data`, the `pgdata` volume and `./skills` are not pa
 #### Option 1: one-click update script
 
 ```bash
-cd ARTEX
+cd ReconRivet
 ./update.sh
 ```
 
-The script optionally `git pull`s, then offers **① Docker update** (`docker compose build artex` →
-`docker compose up -d artex`) or **② local build update** (rebuild the frontend static assets, then
-recompile `./artex`; restart the process for it to take effect).
+The script optionally `git pull`s, then offers **① Docker update** (`docker compose build reconrivet` →
+`docker compose up -d reconrivet`) or **② local build update** (rebuild the frontend static assets, then
+recompile `./reconrivet`; restart the process for it to take effect).
 
 #### Option 2: Docker Compose (manual)
 
 ```bash
-cd ARTEX
+cd ReconRivet
 git pull
-docker compose build artex
-docker compose up -d artex
+docker compose build reconrivet
+docker compose up -d reconrivet
 docker image prune -f            # optional
 ```
 
 #### Option 3: prebuilt binaries
 
-When a release zip is published on [Releases](https://github.com/Protonmatter/ARTEX/releases),
-stop the old process, overwrite `artex` and `skills/` (keep `config.json` and
+When a release zip is published on [Releases](https://github.com/Protonmatter/ReconRivet/releases),
+stop the old process, overwrite `reconrivet` and `skills/` (keep `config.json` and
 `data/`), then restart:
 
 ```bash
-cp -r <extracted dir>/skills ./ && cp <extracted dir>/artex ./
+cp -r <extracted dir>/skills ./ && cp <extracted dir>/reconrivet ./
 ./start.sh
 ```
 
@@ -656,7 +653,7 @@ cp -r <extracted dir>/skills ./ && cp <extracted dir>/artex ./
 git pull
 cd web && npm ci && npm run build:static && cd ..
 cp -r web/out server/webui/dist
-CGO_ENABLED=0 go build -tags embedui -o artex ./cmd/artex
+CGO_ENABLED=0 go build -tags embedui -o reconrivet ./cmd/reconrivet
 # restart ./start.sh
 ```
 
@@ -668,7 +665,7 @@ CGO_ENABLED=0 go build -tags embedui -o artex ./cmd/artex
 ./dev.sh    # backend(:8787) + traffic proxy(:8788) + frontend next dev(:5173) → http://localhost:5173
 ```
 
-- Backend: `go run ./cmd/artex` (without `-tags embedui`, the frontend is not embedded)
+- Backend: `go run ./cmd/reconrivet` (without `-tags embedui`, the frontend is not embedded)
 - Frontend: `cd web && npm run dev` (`/api` is reverse-proxied to the backend, with hot reload)
 - Tests: `go test ./...`
 - Reproduce all CI checks locally: `./scripts/verify.sh` (add `--full` for `-race` and the static web build)
@@ -755,11 +752,11 @@ Operational security properties:
 - **Secrets at rest**: LLM keys/proxies, MCP environment, task credentials, notification config,
   search keys, proxies, custom-tool execution specs, capture-proxy rewrite rules and traffic
   evidence snapshots are encrypted
-  with AES-256-GCM using `keys/secret.key` (or `ARTEX_SECRET_KEY`). ReconRivet refuses to start when
+  with AES-256-GCM using `keys/secret.key` (or `RECONRIVET_SECRET_KEY`). ReconRivet refuses to start when
   encrypted data exists and no usable key is available.
 - **First-run claim**: `/setup` requires a one-time token printed at startup; the UI binds to
   `127.0.0.1` by default.
-- **Login protection**: 10 attempts per minute per client IP, with `ARTEX_TRUSTED_PROXIES` for
+- **Login protection**: 10 attempts per minute per client IP, with `RECONRIVET_TRUSTED_PROXIES` for
   correct client attribution behind a reverse proxy.
 - **Untrusted tool output**: framed as data for every agent by default (prompt-injection boundary).
 - **Release integrity**: a published release archive carries SHA-256 sums, a CycloneDX SBOM, and a
@@ -769,7 +766,7 @@ Operational security properties:
 
 ## Repository
 
-The source for this project is [Protonmatter/ARTEX](https://github.com/Protonmatter/ARTEX).
+The source for this project is [Protonmatter/ReconRivet](https://github.com/Protonmatter/ReconRivet).
 Changes are tracked in [CHANGELOG.md](CHANGELOG.md). The license is AGPL-3.0.
 
 ---

@@ -7,38 +7,38 @@ import (
 
 func TestArchiveStorageEnvironment(t *testing.T) {
 	for _, key := range []string{
-		"ARTEX_ARCHIVE_STORAGE", "ARTEX_ARCHIVE_S3_ENDPOINT", "ARTEX_ARCHIVE_S3_REGION",
-		"ARTEX_ARCHIVE_S3_BUCKET", "ARTEX_ARCHIVE_S3_PREFIX", "ARTEX_ARCHIVE_S3_ACCESS_KEY_ID",
-		"ARTEX_ARCHIVE_S3_SECRET_ACCESS_KEY", "ARTEX_ARCHIVE_S3_PATH_STYLE",
-		"ARTEX_ARCHIVE_S3_SESSION_TOKEN", "ARTEX_ARCHIVE_S3_SSE", "ARTEX_ARCHIVE_S3_KMS_KEY_ID",
+		"RECONRIVET_ARCHIVE_STORAGE", "RECONRIVET_ARCHIVE_S3_ENDPOINT", "RECONRIVET_ARCHIVE_S3_REGION",
+		"RECONRIVET_ARCHIVE_S3_BUCKET", "RECONRIVET_ARCHIVE_S3_PREFIX", "RECONRIVET_ARCHIVE_S3_ACCESS_KEY_ID",
+		"RECONRIVET_ARCHIVE_S3_SECRET_ACCESS_KEY", "RECONRIVET_ARCHIVE_S3_PATH_STYLE",
+		"RECONRIVET_ARCHIVE_S3_SESSION_TOKEN", "RECONRIVET_ARCHIVE_S3_SSE", "RECONRIVET_ARCHIVE_S3_KMS_KEY_ID",
 	} {
 		t.Setenv(key, "")
 	}
 	for _, backend := range []string{"", "local"} {
-		t.Setenv("ARTEX_ARCHIVE_STORAGE", backend)
+		t.Setenv("RECONRIVET_ARCHIVE_STORAGE", backend)
 		if store, err := FromEnv(); err != nil || store != nil {
 			t.Fatalf("local default: %v %v", store, err)
 		}
 	}
 	for _, backend := range []string{"unknown", "s3"} {
-		t.Setenv("ARTEX_ARCHIVE_STORAGE", backend)
+		t.Setenv("RECONRIVET_ARCHIVE_STORAGE", backend)
 		if _, err := FromEnv(); err == nil {
 			t.Fatalf("%q silently fell back to local", backend)
 		}
 	}
-	t.Setenv("ARTEX_ARCHIVE_S3_ENDPOINT", "http://127.0.0.1:9000")
-	t.Setenv("ARTEX_ARCHIVE_S3_BUCKET", "test-bucket")
-	t.Setenv("ARTEX_ARCHIVE_S3_ACCESS_KEY_ID", "test-key")
-	t.Setenv("ARTEX_ARCHIVE_S3_SECRET_ACCESS_KEY", "test-secret")
-	t.Setenv("ARTEX_ARCHIVE_S3_PATH_STYLE", "true")
+	t.Setenv("RECONRIVET_ARCHIVE_S3_ENDPOINT", "http://127.0.0.1:9000")
+	t.Setenv("RECONRIVET_ARCHIVE_S3_BUCKET", "test-bucket")
+	t.Setenv("RECONRIVET_ARCHIVE_S3_ACCESS_KEY_ID", "test-key")
+	t.Setenv("RECONRIVET_ARCHIVE_S3_SECRET_ACCESS_KEY", "test-secret")
+	t.Setenv("RECONRIVET_ARCHIVE_S3_PATH_STYLE", "true")
 	store, err := FromEnv()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if uri := store.URI(1, 2, "checksum"); uri != "s3://test-bucket/artex/tasks/task-1-2-checksum.tar.zst" {
+	if uri := store.URI(1, 2, "checksum"); uri != "s3://test-bucket/reconrivet/tasks/task-1-2-checksum.tar.zst" {
 		t.Fatal("unexpected default object location", uri)
 	}
-	t.Setenv("ARTEX_ARCHIVE_S3_SECRET_ACCESS_KEY", "")
+	t.Setenv("RECONRIVET_ARCHIVE_S3_SECRET_ACCESS_KEY", "")
 	if _, err := FromEnv(); err == nil {
 		t.Fatal("missing credentials accepted")
 	}

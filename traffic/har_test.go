@@ -8,36 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Autumn-27/artex/traffic/rewrite"
+	"github.com/Protonmatter/ReconRivet/traffic/rewrite"
 )
-
-func TestHAREntryGoFieldCompatibility(t *testing.T) {
-	old := HAREntry{ArtexExchangeID: "old-id"}
-	oldJSON, err := json.Marshal(old)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !bytes.Contains(oldJSON, []byte(`"_artexExchangeId":"old-id"`)) {
-		t.Fatalf("legacy Go field did not retain its JSON behavior: %s", oldJSON)
-	}
-	var decodedOld HAREntry
-	if err := json.Unmarshal(oldJSON, &decodedOld); err != nil || decodedOld.ArtexExchangeID != "old-id" {
-		t.Fatalf("legacy JSON decoded as %+v, %v", decodedOld, err)
-	}
-
-	newEntry := HAREntry{ReconRivetExchangeID: "new-id", ArtexExchangeID: "new-id"}
-	newJSON, err := json.Marshal(newEntry)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !bytes.Contains(newJSON, []byte(`"_reconrivetExchangeId":"new-id"`)) || bytes.Contains(newJSON, []byte(`"_artexExchangeId"`)) {
-		t.Fatalf("new HAR entry emitted the wrong ID fields: %s", newJSON)
-	}
-	var decodedNew HAREntry
-	if err := json.Unmarshal(newJSON, &decodedNew); err != nil || decodedNew.ArtexExchangeID != "new-id" {
-		t.Fatalf("new JSON did not populate the Go compatibility field: %+v, %v", decodedNew, err)
-	}
-}
 
 func TestHARRoundTripPlainBase64BinaryEmptyAndLargeBlob(t *testing.T) {
 	src, err := Open(t.TempDir(), "127.0.0.1:0")
@@ -556,15 +528,12 @@ VALUES(?,'POST /ping HTTP/1.1\nHost: same.example\n',?,'HTTP/1.1 200 OK\n',?)`, 
 		t.Fatalf("exported _reconrivetExchangeId = [%q %q], want [dup-a dup-b]",
 			exported.Log.Entries[0].ReconRivetExchangeID, exported.Log.Entries[1].ReconRivetExchangeID)
 	}
-	if exported.Log.Entries[0].ArtexExchangeID != "dup-a" || exported.Log.Entries[1].ArtexExchangeID != "dup-b" {
-		t.Fatalf("legacy Go field missing from exported entries: %+v", exported.Log.Entries)
-	}
 	raw, err := json.Marshal(exported)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if bytes.Contains(raw, []byte(`"_artexExchangeId"`)) {
-		t.Fatal("new HAR export still emitted the legacy ID field")
+	if !bytes.Contains(raw, []byte(`"_reconrivetExchangeId"`)) {
+		t.Fatal("HAR export omitted the ReconRivet exchange ID field")
 	}
 
 	// Re-importing into src is idempotent (both skipped).
@@ -592,15 +561,6 @@ VALUES(?,'POST /ping HTTP/1.1\nHost: same.example\n',?,'HTTP/1.1 200 OK\n',?)`, 
 	}
 	if count, err := dst.Count(); err != nil || count != 2 {
 		t.Fatalf("dst.Count() = (%d, %v), want 2", count, err)
-	}
-	legacyRaw := bytes.ReplaceAll(raw, []byte("_reconrivetExchangeId"), []byte("_artexExchangeId"))
-	legacyDst, err := Open(t.TempDir(), "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer legacyDst.Close()
-	if legacy, err := legacyDst.ImportHAR(legacyRaw, HARImportOptions{}); err != nil || legacy.Imported != 2 {
-		t.Fatalf("legacy field import = %+v, %v; want 2 imported", legacy, err)
 	}
 	if _, _, err := dst.Get("dup-a"); err != nil {
 		t.Fatalf("dup-a missing in dst: %v", err)

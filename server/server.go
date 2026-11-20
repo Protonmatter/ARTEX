@@ -23,20 +23,20 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/Autumn-27/artex/agent"
-	"github.com/Autumn-27/artex/db"
-	"github.com/Autumn-27/artex/egress"
-	"github.com/Autumn-27/artex/intercept"
-	"github.com/Autumn-27/artex/llmpool"
-	"github.com/Autumn-27/artex/llmrec"
-	"github.com/Autumn-27/artex/report"
-	"github.com/Autumn-27/artex/traffic"
 	"github.com/Autumn-27/norma/llm"
 	actool "github.com/Autumn-27/norma/tool"
 	"github.com/Autumn-27/norma/transcript"
+	"github.com/Protonmatter/ReconRivet/agent"
+	"github.com/Protonmatter/ReconRivet/db"
+	"github.com/Protonmatter/ReconRivet/egress"
+	"github.com/Protonmatter/ReconRivet/intercept"
+	"github.com/Protonmatter/ReconRivet/llmpool"
+	"github.com/Protonmatter/ReconRivet/llmrec"
+	"github.com/Protonmatter/ReconRivet/report"
+	"github.com/Protonmatter/ReconRivet/traffic"
 )
 
-// BuildVersion is the backend application version, injected from cmd/artex at
+// BuildVersion is the backend application version, injected from cmd/reconrivet at
 // startup (which in turn gets it from -ldflags "-X main.version=<tag>").
 // Defaults to "dev" for local builds. Exposed to the frontend via GET /api/health.
 var BuildVersion = "dev"
@@ -51,7 +51,7 @@ type Server struct {
 	skillDir string // root directory for skill subdirectories
 	jwtKey   []byte // HS256 signing key loaded from / generated into keyDir/jwt.key
 
-	scrubSecrets bool // drop ARTEX_PG_DSN and the API keys from the environment once read (binary only)
+	scrubSecrets bool // drop RECONRIVET_PG_DSN and the API keys from the environment once read (binary only)
 
 	execPriv ExecPrivilege // identity agent processes run under; zero keeps the server's own
 
@@ -70,7 +70,7 @@ type Server struct {
 
 	// Test-only seams for pgListModels SSRF checks. All remain zero/nil in
 	// production (strict public-only default; only exact host:port entries in
-	// ARTEX_LLM_PRIVATE_ENDPOINTS may resolve to private addresses).
+	// RECONRIVET_LLM_PRIVATE_ENDPOINTS may resolve to private addresses).
 	allowLoopbackModels bool
 	modelLookupIP       func(ctx context.Context, host string) ([]netip.Addr, error)
 	modelDialContext    func(ctx context.Context, network, addr string) (net.Conn, error)
@@ -78,7 +78,7 @@ type Server struct {
 
 	loginLimit     *loginLimiter  // per-IP attempt limit on POST /api/auth/login
 	pwdLimit       *loginLimiter  // attempt limit on POST /api/auth/change-password (IP + session token)
-	trustedProxies []netip.Prefix // ARTEX_TRUSTED_PROXIES; see clientIP
+	trustedProxies []netip.Prefix // RECONRIVET_TRUSTED_PROXIES; see clientIP
 
 	// concMu serializes concurrency-cap decisions (admission + reconcile) so a
 	// scheduler tick and an HTTP settings change / task creation can't both count
@@ -1085,7 +1085,7 @@ func (s *Server) health(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	out := map[string]any{"ok": true, "service": "reconrivet", "version": BuildVersion}
-	// Opt-in only (ARTEX_UPDATE_CHECK); off, this returns "" without any request.
+	// Opt-in only (RECONRIVET_UPDATE_CHECK); off, this returns "" without any request.
 	if latest := updates.newerVersion(r.Context(), time.Now(), BuildVersion); latest != "" {
 		out["latest_version"] = latest
 	}
@@ -2437,7 +2437,7 @@ func (s *Server) findingsExport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	stage, err := os.MkdirTemp("", "artex-finding-export-")
+	stage, err := os.MkdirTemp("", "reconrivet-finding-export-")
 	if err != nil {
 		writeErr(w, 500, err.Error())
 		return
@@ -3860,7 +3860,7 @@ func (s *Server) settingsPayload() map[string]any {
 		// Render limits of IM messages; 0 = no truncation.
 		"notify_summary_max_runes": limits.SummaryRunes,
 		"notify_assets_max_shown":  limits.AssetsShown,
-		// Effective target noise profile (off by default): the stored setting, else ARTEX_NOISE_PROFILE.
+		// Effective target noise profile (off by default): the stored setting, else RECONRIVET_NOISE_PROFILE.
 		"noise_profile": egress.CurrentProfile().Name,
 	}
 }

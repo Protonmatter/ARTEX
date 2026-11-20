@@ -22,13 +22,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Autumn-27/artex/llmrec"
 	"github.com/Autumn-27/norma/agentcore"
 	"github.com/Autumn-27/norma/compaction"
 	"github.com/Autumn-27/norma/llm"
 	acperm "github.com/Autumn-27/norma/permission"
 	actool "github.com/Autumn-27/norma/tool"
 	"github.com/Autumn-27/norma/transcript"
+	"github.com/Protonmatter/ReconRivet/llmrec"
 )
 
 // Config describes the LLM backend resolved from the environment.
@@ -219,15 +219,15 @@ func compactionConfig(windowTokens int) *compaction.Config {
 
 // FromEnv resolves the LLM provider config:
 //
-//	ARTEX_LLM_PROVIDER = anthropic|openai|openai-responses|ollama (default: inferred from keys)
-//	ARTEX_LLM_MODEL    = model id        (default: per provider)
-//	ARTEX_LLM_BASE_URL = endpoint        (optional; ollama defaults to localhost:11434/v1)
-//	ARTEX_LLM_PROXY    = proxy URL        (optional; http/https/socks5)
+//	RECONRIVET_LLM_PROVIDER = anthropic|openai|openai-responses|ollama (default: inferred from keys)
+//	RECONRIVET_LLM_MODEL    = model id        (default: per provider)
+//	RECONRIVET_LLM_BASE_URL = endpoint        (optional; ollama defaults to localhost:11434/v1)
+//	RECONRIVET_LLM_PROXY    = proxy URL        (optional; http/https/socks5)
 //	ANTHROPIC_API_KEY / OPENAI_API_KEY         = credentials (unused for ollama)
 func FromEnv() (Config, bool) {
 	// Case- and space-insensitive: "Ollama" used to miss every case below and
 	// fall through to anthropic, sending ANTHROPIC_API_KEY to the Ollama base URL.
-	prov := strings.ToLower(strings.TrimSpace(os.Getenv("ARTEX_LLM_PROVIDER")))
+	prov := strings.ToLower(strings.TrimSpace(os.Getenv("RECONRIVET_LLM_PROVIDER")))
 	anthKey := os.Getenv("ANTHROPIC_API_KEY")
 	oaiKey := os.Getenv("OPENAI_API_KEY")
 
@@ -243,12 +243,12 @@ func FromEnv() (Config, bool) {
 	}
 
 	c := Config{
-		BaseURL: os.Getenv("ARTEX_LLM_BASE_URL"),
-		Model:   os.Getenv("ARTEX_LLM_MODEL"),
-		Proxy:   strings.TrimSpace(os.Getenv("ARTEX_LLM_PROXY")),
-		// Streaming by default; ARTEX_LLM_STREAM=false/0/off explicitly switches to
+		BaseURL: os.Getenv("RECONRIVET_LLM_BASE_URL"),
+		Model:   os.Getenv("RECONRIVET_LLM_MODEL"),
+		Proxy:   strings.TrimSpace(os.Getenv("RECONRIVET_LLM_PROXY")),
+		// Streaming by default; RECONRIVET_LLM_STREAM=false/0/off explicitly switches to
 		// non-streaming.
-		Stream: !isFalsy(os.Getenv("ARTEX_LLM_STREAM")),
+		Stream: !isFalsy(os.Getenv("RECONRIVET_LLM_STREAM")),
 	}
 	switch prov {
 	case "openai":

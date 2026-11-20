@@ -11,15 +11,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Autumn-27/artex/db"
-	"github.com/Autumn-27/artex/egress"
-	"github.com/Autumn-27/artex/intercept"
 	"github.com/Autumn-27/norma/agentcore"
 	"github.com/Autumn-27/norma/harness"
 	"github.com/Autumn-27/norma/llm"
 	"github.com/Autumn-27/norma/permission"
 	actool "github.com/Autumn-27/norma/tool"
 	"github.com/Autumn-27/norma/transcript"
+	"github.com/Protonmatter/ReconRivet/db"
+	"github.com/Protonmatter/ReconRivet/egress"
+	"github.com/Protonmatter/ReconRivet/intercept"
 )
 
 // Worker is an LLM work agent (docs §4.4): it claims ONE intent, completes it
@@ -115,9 +115,8 @@ func workerChatMarker(requestID string) string {
 
 func hasWorkerChatMessage(messages []llm.Message, requestID string) bool {
 	marker := workerChatMarker(requestID)
-	legacyMarker := "<!-- ARTEX_WORKER_CHAT:" + requestID + " -->"
 	for _, message := range messages {
-		if message.Role == llm.RoleUser && (strings.Contains(message.Text(), marker) || strings.Contains(message.Text(), legacyMarker)) {
+		if message.Role == llm.RoleUser && strings.Contains(message.Text(), marker) {
 			return true
 		}
 	}
@@ -610,7 +609,7 @@ func (w *Worker) execute(ctx context.Context, name string, taskID int64, as *db.
 		NonStreaming:  w.nonStreaming(),                       // when this profile selects non-streaming, use Provider.Complete
 		MaxTokens:     w.maxTokens(),                          // 0 = send no cap; the server default decides
 
-		// On by default; ARTEX_UNTRUSTED_BOUNDARY=0 opts out: nonce-frame tool output as untrusted data.
+		// On by default; RECONRIVET_UNTRUSTED_BOUNDARY=0 opts out: nonce-frame tool output as untrusted data.
 		UntrustedOutputBoundary: untrustedBoundaryEnabled(),
 	}
 	if hooks != nil { // typed-nil guard: only set when concrete (avoids harness panic)

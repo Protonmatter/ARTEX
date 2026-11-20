@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Autumn-27/artex/traffic/rewrite"
+	"github.com/Protonmatter/ReconRivet/traffic/rewrite"
 )
 
 func advHeaderValue(hs []ReplayHeader, name string) string {

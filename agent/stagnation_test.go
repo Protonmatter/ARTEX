@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/Autumn-27/artex/db"
+	"github.com/Protonmatter/ReconRivet/db"
 )
 
 func nodeWithSummary(id int64, summary string) *db.Node {

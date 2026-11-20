@@ -50,8 +50,8 @@ Individual malformed entries (invalid `startedDateTime`, non-HTTP(S) URL, invali
 
 ### Deterministic IDs, round-trip fidelity, & idempotence
 
-- **ReconRivet exports (`_reconrivetExchangeId`)**: Every entry exported by ReconRivet carries this HAR 1.2 custom field set to the exchange's stored ID. On import, a valid ID (`[A-Za-z0-9._:-]`, 1–128 chars) is preserved. Old exports with `_artexExchangeId` are also accepted; the new field takes precedence when both contain valid IDs. This keeps distinct exchanges recorded within the same second from collapsing into one row and makes re-import idempotent (`skipped`).
-- **External HARs (neither ID field)**: Each entry receives a deterministic content-based ID:
+- **ReconRivet exports (`_reconrivetExchangeId`)**: Every entry exported by ReconRivet carries this HAR 1.2 custom field set to the exchange's stored ID. On import, a valid ID (`[A-Za-z0-9._:-]`, 1–128 chars) is preserved. This keeps distinct exchanges recorded within the same second from collapsing into one row and makes re-import idempotent (`skipped`).
+- **External HARs (no `_reconrivetExchangeId`)**: Each entry receives a deterministic content-based ID:
 
 ```text
 har-<hex(sha256(ts_unix_seconds + NUL + METHOD + NUL + canonical_url + NUL + status + NUL + sha256(req_body) + NUL + sha256(resp_body)))>

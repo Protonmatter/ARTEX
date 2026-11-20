@@ -11,10 +11,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Autumn-27/artex/agent"
-	"github.com/Autumn-27/artex/db"
 	"github.com/Autumn-27/norma/harness"
 	"github.com/Autumn-27/norma/llm"
+	"github.com/Protonmatter/ReconRivet/agent"
+	"github.com/Protonmatter/ReconRivet/db"
 )
 
 type scriptedLLMProvider struct {

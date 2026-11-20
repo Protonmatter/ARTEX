@@ -12,14 +12,14 @@ import (
 	"time"
 )
 
-// The update check is opt-in: only ARTEX_UPDATE_CHECK=1 (or true/on/yes) lets
+// The update check is opt-in: only RECONRIVET_UPDATE_CHECK=1 (or true/on/yes) lets
 // the backend ask the public GitHub releases API for the latest ReconRivet tag.
 // Unset, it makes no request at all and the UI shows no banner.
-const updateCheckURL = "https://api.github.com/repos/Protonmatter/ARTEX/releases/latest"
+const updateCheckURL = "https://api.github.com/repos/Protonmatter/ReconRivet/releases/latest"
 const updateCheckInterval = 24 * time.Hour
 
 func updateCheckEnabled() bool {
-	switch strings.ToLower(strings.TrimSpace(os.Getenv("ARTEX_UPDATE_CHECK"))) {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv("RECONRIVET_UPDATE_CHECK"))) {
 	case "1", "true", "on", "yes":
 		return true
 	}

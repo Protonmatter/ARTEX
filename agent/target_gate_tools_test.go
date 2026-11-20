@@ -3,7 +3,7 @@ package agent
 import (
 	"testing"
 
-	"github.com/Autumn-27/artex/intercept"
+	"github.com/Protonmatter/ReconRivet/intercept"
 )
 
 // The domain tools read and write the platform's own records (the exploration

@@ -27,7 +27,7 @@ const (
 )
 
 // execDropArg is the argv marker of the MCP drop shim:
-// artex __reconrivet-exec-drop <uid> <gid> -- <command> <args...>.
+// reconrivet __reconrivet-exec-drop <uid> <gid> -- <command> <args...>.
 const execDropArg = "__reconrivet-exec-drop"
 
 // ExecPrivilege is the identity agent processes run under. The zero value is

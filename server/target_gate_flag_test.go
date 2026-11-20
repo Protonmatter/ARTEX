@@ -14,10 +14,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Autumn-27/artex/agent"
-	"github.com/Autumn-27/artex/db"
-	"github.com/Autumn-27/artex/intercept"
 	"github.com/Autumn-27/norma/llm"
+	"github.com/Protonmatter/ReconRivet/agent"
+	"github.com/Protonmatter/ReconRivet/db"
+	"github.com/Protonmatter/ReconRivet/intercept"
 )
 
 // Target-gate opt-in flag, pins and decisions over the real mux and the real
@@ -239,7 +239,7 @@ func TestSpawnedTaskInheritsGateFromCaller(t *testing.T) {
 		t.Fatal("control: one parent gated, the other not")
 	}
 	// The gated parent holds one pin, which no child may get.
-	if p, ok, err := g.m.pg.ResolveTargetRequest(openTargetRow(t, g.m.pg, taskRef(t, gated), "app.example.com", "203.0.113.7"), true, "ARTEX", "192.0.2.1"); err != nil || !ok || p == nil {
+	if p, ok, err := g.m.pg.ResolveTargetRequest(openTargetRow(t, g.m.pg, taskRef(t, gated), "app.example.com", "203.0.113.7"), true, "ReconRivet", "192.0.2.1"); err != nil || !ok || p == nil {
 		t.Fatalf("pin the parent: %+v ok=%v err=%v", p, ok, err)
 	}
 	conv, err := g.m.pg.CreateConversationGated("auto", "spawn from a gated chat", nil, true)
@@ -377,7 +377,7 @@ func TestTriggeredConversationInheritsGate(t *testing.T) {
 	g.s.cfgMu.Unlock()
 	on := true
 	gated, open := g.newTask(t, db.TaskCreateOptions{TargetGate: &on}), g.newTask(t, db.TaskCreateOptions{})
-	if p, ok, err := g.m.pg.ResolveTargetRequest(openTargetRow(t, g.m.pg, taskRef(t, gated), "app.example.com", "203.0.113.7"), true, "ARTEX", "192.0.2.1"); err != nil || !ok || p == nil {
+	if p, ok, err := g.m.pg.ResolveTargetRequest(openTargetRow(t, g.m.pg, taskRef(t, gated), "app.example.com", "203.0.113.7"), true, "ReconRivet", "192.0.2.1"); err != nil || !ok || p == nil {
 		t.Fatalf("pin the gated task: %+v ok=%v err=%v", p, ok, err)
 	}
 	gatedID, openID := taskRef(t, gated).TaskID, taskRef(t, open).TaskID
@@ -597,7 +597,7 @@ func TestTargetPinRoutes(t *testing.T) {
 	})
 	pin := func(scope db.TargetScopeRef, host string) int64 {
 		t.Helper()
-		p, ok, err := pg.ResolveTargetRequest(openTargetRow(t, pg, scope, host, "203.0.113.7"), true, "ARTEX", "192.0.2.1")
+		p, ok, err := pg.ResolveTargetRequest(openTargetRow(t, pg, scope, host, "203.0.113.7"), true, "ReconRivet", "192.0.2.1")
 		if err != nil || !ok || p == nil {
 			t.Fatalf("pin %s: %+v ok=%v err=%v", host, p, ok, err)
 		}
@@ -629,7 +629,7 @@ func TestTargetPinRoutes(t *testing.T) {
 			t.Fatalf("%s: %d pins, want 1", tc.base, len(pins))
 		}
 		got := pins[0].(map[string]any)
-		if got["id"] != float64(tc.id) || got["host"] != tc.host || got["status"] != "active" || got["decided_by"] != "ARTEX" || got["name_only_effective"] != false {
+		if got["id"] != float64(tc.id) || got["host"] != tc.host || got["status"] != "active" || got["decided_by"] != "ReconRivet" || got["name_only_effective"] != false {
 			t.Fatalf("%s: listed pin = %v", tc.base, got)
 		}
 		revoke := fmt.Sprintf("%s/target-pins/%d/revoke", tc.base, tc.id)
@@ -761,7 +761,7 @@ func TestClaimLostEndsGateWait(t *testing.T) {
 	if ids := openRows(); !slices.Equal(ids, []int64{request}) {
 		t.Fatalf("open requests = %v, want the second claimer on the same request %d", ids, request)
 	}
-	if err := ic.Decide(request, true, "ARTEX", "192.0.2.1"); err != nil {
+	if err := ic.Decide(request, true, "ReconRivet", "192.0.2.1"); err != nil {
 		t.Fatal(err)
 	}
 	select {

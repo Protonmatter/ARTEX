@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Autumn-27/artex/db"
 	actool "github.com/Autumn-27/norma/tool"
+	"github.com/Protonmatter/ReconRivet/db"
 )
 
 func callReadJSON(t *testing.T, tool actool.CoreTool, input string) any {
@@ -27,7 +27,7 @@ func callReadJSON(t *testing.T, tool actool.CoreTool, input string) any {
 
 func TestGraphOverviewExpandsAssociatedCompanyScope(t *testing.T) {
 	// Known failure with a freshly seeded database (BaaRai/ARTEX#9). Repro:
-	//   ARTEX_PG_DSN=postgres://artex:testpass@localhost:5432/artextest_agent \
+	//   RECONRIVET_PG_DSN=postgres://reconrivet:testpass@localhost:5432/reconrivettest_agent \
 	//     go test ./agent -run TestGraphOverviewExpandsAssociatedCompanyScope -count=1 -v
 	// On a fresh DB the company-scope expansion in graphOverviewData is not
 	// visible to the task: the t.Fatalf checks after QueryByTask and
