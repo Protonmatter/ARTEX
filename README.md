@@ -28,7 +28,7 @@ for how the test is progressing. Every finding can carry the captured request an
 justify it, and every autonomous action passes through scope rules, approval gates and budgets.
 
 The repository, Go module, executable, Docker service, configuration variables, browser
-storage, and HAR identifiers all use ReconRivet names. This branch targets fresh
+storage, and HAR identifiers all use ReconRivet names. This rename targets fresh
 installations; it does not migrate data or configuration from earlier names.
 
 - **It explores, it doesn't chat.** Goal decomposition, intent dispatch, worker execution and
