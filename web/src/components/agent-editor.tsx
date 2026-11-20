@@ -31,7 +31,10 @@ import type { Agent, AgentDetail, AgentTrigger, MCPServer, PromptVar, PromptVers
 
 // Renders a translated string, turning <b>…</b> spans into bold elements, so a sentence with emphasis stays one key.
 function rich(s: string): React.ReactNode[] {
-  return s.split(/<b>(.*?)<\/b>/).map((part, i) => (i % 2 === 1 ? <b key={i}>{part}</b> : part));
+  return s.split(/<b>(.*?)<\/b>/).map((part, i) => (i % 2 === 1 ? <b key={
+    // biome-ignore lint/suspicious/noArrayIndexKey: translated markup fragments keep their source order and have no component state.
+    i
+  }>{part}</b> : part));
 }
 
 // Traffic tools are host tools gated by the global traffic capture switch: bindable, but
@@ -285,7 +288,6 @@ export function AgentEditor({ agentKey, onSaved }: { agentKey: string; onSaved?:
   // interactive shell (persistent PTY session tool family) is likewise open to all agents except goals; no global gate.
   const showInteractiveShell = agentKey !== "goals";
   // Every agent (including goals/mainagent) runs on some LLM, so the "default model" binding is open to all agents.
-  const showLLM = true;
   // triggers (P3) only attach to custom agents.
   const isCustom = !!detail && !detail.agent?.builtin;
 
@@ -303,9 +305,7 @@ export function AgentEditor({ agentKey, onSaved }: { agentKey: string; onSaved?:
       {/* config + prompt */}
       <TabsContent value="prompt" className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
         <div className="grid gap-4">
-          {(showLLM || showConfig || showWebSearch || showInteractiveShell) && (
             <div className="grid gap-3 rounded-md border p-3">
-              {showLLM && (
                 <div className="grid gap-1.5">
                   <Label htmlFor="llm-profile" className="text-xs">{t("Default model (LLM profile)")}</Label>
                   <div className="flex flex-wrap items-center gap-3">
@@ -331,7 +331,6 @@ export function AgentEditor({ agentKey, onSaved }: { agentKey: string; onSaved?:
                     </span>
                   </div>
                 </div>
-              )}
               <div className="flex flex-wrap items-end gap-3">
                 {showConfig && (
                   <>
@@ -387,7 +386,6 @@ export function AgentEditor({ agentKey, onSaved }: { agentKey: string; onSaved?:
                 </div>
               )}
             </div>
-          )}
 
           <div className="grid gap-2">
             <Label className="text-muted-foreground text-xs">
@@ -767,7 +765,10 @@ function DiffView({ oldText, newText }: { oldText: string; newText: string }) {
     <pre className="max-h-[60vh] overflow-auto rounded-md border bg-muted/30 p-2 font-mono text-xs leading-5">
       {lines.map((l, idx) => (
         <div
-          key={idx}
+          key={
+            // biome-ignore lint/suspicious/noArrayIndexKey: diff lines are positional, display-only output with no child component state.
+            idx
+          }
           className={cn(
             "whitespace-pre-wrap px-1",
             l.type === "del" && "bg-red-500/15 text-red-700 dark:text-red-400",
@@ -775,7 +776,12 @@ function DiffView({ oldText, newText }: { oldText: string; newText: string }) {
             l.type === "same" && "text-muted-foreground",
           )}
         >
-          <span className="select-none mr-1 opacity-50">{l.type === "del" ? "-" : l.type === "add" ? "+" : " "}</span>
+          <span className="select-none mr-1 opacity-50">{l.type === "del" ? "-" : (() => {
+            if (l.type === "add") {
+              return "+";
+            }
+            return " ";
+          })()}</span>
           {l.text}
         </div>
       ))}
@@ -1051,15 +1057,19 @@ function AgentTriggersTab({ agentKey, agent }: { agentKey: string; agent?: Agent
             ? t(
                 "Parallel: each trigger immediately starts its own concurrent session, no merging; triggers beyond the max concurrency queue for a free slot.",
               )
-            : mergeMode === "by_task"
-              ? t(
+            : (() => {
+              if (mergeMode === "by_task") {
+                return t(
                   "Serial · merge by task: one run at a time per agent; queued events for the same task merge into one conversation.",
-                )
-              : mergeMode === "all"
-                ? t(
-                    "Serial · merge all: one run at a time per agent; when dequeuing, all currently queued triggers merge into one conversation.",
-                  )
-                : t("Serial · no merge: one run at a time per agent; each trigger gets its own conversation.")}
+                );
+              }
+              if (mergeMode === "all") {
+                return t(
+                  "Serial · merge all: one run at a time per agent; when dequeuing, all currently queued triggers merge into one conversation.",
+                );
+              }
+              return t("Serial · no merge: one run at a time per agent; each trigger gets its own conversation.");
+            })()}
         </p>
       </div>
 

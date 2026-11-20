@@ -19,14 +19,14 @@ interface TablePaginationProps {
 }
 
 // pageWindows returns the sequence of page numbers / ellipsis to render.
-function pageWindows(page: number, total: number): (number | "...")[] {
+function pageWindows(page: number, total: number): (number | "left" | "right")[] {
   if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
-  const out: (number | "...")[] = [1];
-  if (page > 3) out.push("...");
+  const out: (number | "left" | "right")[] = [1];
+  if (page > 3) out.push("left");
   const lo = Math.max(2, page - 1);
   const hi = Math.min(total - 1, page + 1);
   for (let i = lo; i <= hi; i++) out.push(i);
-  if (page < total - 2) out.push("...");
+  if (page < total - 2) out.push("right");
   out.push(total);
   return out;
 }
@@ -87,9 +87,9 @@ export function TablePagination({
                 <ChevronLeftIcon className="size-4" />
               </Button>
             </PaginationItem>
-            {pageWindows(safePage, totalPages).map((p, i) =>
-              p === "..." ? (
-                <PaginationItem key={`el-${i}`}>
+            {pageWindows(safePage, totalPages).map((p) =>
+              p === "left" || p === "right" ? (
+                <PaginationItem key={p}>
                   <PaginationEllipsis />
                 </PaginationItem>
               ) : (

@@ -375,8 +375,8 @@ export default function AssetsPage() {
                       <TableCell>
                         {c.scope?.length ? (
                           <div className="flex flex-wrap gap-1">
-                            {c.scope.map((s, i) => (
-                              <Badge key={i} variant="secondary" className="font-mono text-[11px]">
+                            {c.scope.map((s) => (
+                              <Badge key={s.id} variant="secondary" className="font-mono text-[11px]">
                                 {s.raw}
                               </Badge>
                             ))}
@@ -662,7 +662,10 @@ export default function AssetsPage() {
                         const item = authItem as Record<string, string>;
                         const label = item.type || item.username || t("Auth");
                         return (
-                          <span key={i} className="inline-flex items-center gap-1 text-[11px]">
+                          <span key={
+                            // biome-ignore lint/suspicious/noArrayIndexKey: auth entries have no stable ID; these display-only chips may repeat without exposing credentials in keys.
+                            i
+                          } className="inline-flex items-center gap-1 text-[11px]">
                             <KeyRoundIcon className="size-3 text-muted-foreground" />
                             <span className="font-mono">{label}</span>
                           </span>
@@ -852,6 +855,7 @@ function AssetCard({
   const start = total === 0 ? 0 : page * size + 1;
   const end = page * size + childRows.length;
 
+  // biome-ignore lint/suspicious/noUnnecessaryConditions: dataRows can be undefined while a child page is loading.
   const pageIds = dataRows?.map((r) => r.id) ?? [];
   const allSelected = pageIds.length > 0 && selected != null && pageIds.every((id) => selected.has(id));
   const someSelected = selected != null && pageIds.some((id) => selected.has(id));
@@ -864,14 +868,19 @@ function AssetCard({
             <TableRow>
               {cols.map((c, i) =>
                 c === "" && i === 0 && onToggleAll ? (
-                  <TableHead key={i} className="w-8 pr-0">
+                  <TableHead key="selection" className="w-8 pr-0">
                     <Checkbox
-                      checked={allSelected ? true : someSelected ? "indeterminate" : false}
+                      checked={allSelected ? true : (() => {
+                        if (someSelected) {
+                          return "indeterminate";
+                        }
+                        return false;
+                      })()}
                       onCheckedChange={() => onToggleAll(pageIds)}
                     />
                   </TableHead>
                 ) : (
-                  <TableHead key={c + i}>{c && t(c)}</TableHead>
+                  <TableHead key={c || "selection-label"}>{c && t(c)}</TableHead>
                 ),
               )}
             </TableRow>
@@ -940,12 +949,12 @@ function AssetCard({
 }
 
 function Chips({ items, mono }: { items: string[]; mono?: boolean }) {
-  const clean = items.filter(Boolean);
+  const clean = [...new Set(items.filter(Boolean))];
   if (clean.length === 0) return <span className="text-xs text-muted-foreground">—</span>;
   return (
     <div className="flex flex-wrap gap-1">
-      {clean.map((s, i) => (
-        <Badge key={i} variant="outline" className={cn("text-[10px]", mono && "font-mono")}>
+      {clean.map((s) => (
+        <Badge key={s} variant="outline" className={cn("text-[10px]", mono && "font-mono")}>
           {s}
         </Badge>
       ))}

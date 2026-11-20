@@ -58,13 +58,7 @@ func logConfigSnapshot(s configSnapshot) {
 // -ldflags "-X main.version=<tag>". Defaults to "dev" for local builds.
 var version = "dev"
 
-const banner = `
-    _    ____ _____ _______  __
-   / \  |  _ \_   _| ____\ \/ /
-  / _ \ | |_) || | |  _|  \  /
- / ___ \|  _ < | | | |___ /  \
-/_/   \_\_| \_\|_| |_____/_/\_\
-`
+const banner = "\n  ReconRivet\n"
 
 // printBanner writes the startup banner + version/runtime info to stdout.
 func printBanner(addr string) {

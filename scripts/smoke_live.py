@@ -81,6 +81,7 @@ def run(binary: Path) -> None:
     base = f"http://127.0.0.1:{port}"
     opener = build_opener(ProxyHandler({}))
     token_events: queue.Queue[str] = queue.Queue(maxsize=1)
+    banner_seen = threading.Event()
 
     with tempfile.TemporaryDirectory(prefix="reconrivet-smoke-") as root:
         root_path = Path(root)
@@ -96,6 +97,8 @@ def run(binary: Path) -> None:
 
         def read_log() -> None:
             for line in process.stdout:
+                if line.strip() == "ReconRivet":
+                    banner_seen.set()
                 match = SETUP_TOKEN.search(line)
                 if match and token_events.empty():
                     token_events.put(match.group(1))
@@ -122,6 +125,8 @@ def run(binary: Path) -> None:
                 time.sleep(0.2)
             else:
                 raise AssertionError("server did not become ready and issue a setup token within 60 seconds")
+            if not banner_seen.is_set():
+                raise AssertionError("startup banner did not identify ReconRivet")
 
             status, _, raw = request(opener, base, "/api/auth/status")
             if expect_json(status, raw, 200, "/api/auth/status").get("initialized") is not False:
@@ -180,7 +185,7 @@ def run(binary: Path) -> None:
                 process.wait(timeout=5)
                 raise AssertionError("server did not stop within 15 seconds") from None
 
-    logging.info("Live smoke passed: readiness, setup, login, health, HAR export, embedded UI")
+    logging.info("Live smoke passed: banner, readiness, setup, login, health, HAR export, embedded UI")
 
 
 def main() -> int:

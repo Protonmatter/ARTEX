@@ -630,7 +630,12 @@ export default function DashboardPage() {
             {llmProfiles.map((p) => {
               const key = Number(p.id);
               const hasData = tokenByProfile.has(key) || (p.is_default && tokenByProfile.has(defaultProfileId));
-              const resolvedKey = tokenByProfile.has(key) ? key : p.is_default ? defaultProfileId : key;
+              const resolvedKey = tokenByProfile.has(key) ? key : (() => {
+                if (p.is_default) {
+                  return defaultProfileId;
+                }
+                return key;
+              })();
               return (
                 <button
                   type="button"

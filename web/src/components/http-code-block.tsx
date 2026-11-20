@@ -197,7 +197,10 @@ export function HttpCodeBlock({ raw }: { raw: string }) {
       >
         {lines.map((line, index) => (
           <div
-            key={`${index}-${line}`}
+            key={
+              // biome-ignore lint/suspicious/noArrayIndexKey: code lines are positional, display-only output with no child component state.
+              `${index}-${line}`
+            }
             data-line={index + 1}
             className="grid min-w-0 grid-cols-[1.5rem_minmax(0,1fr)] leading-relaxed before:sticky before:left-0 before:self-stretch before:border-r before:bg-muted/20 before:px-1 before:text-right before:text-muted-foreground/60 before:content-[attr(data-line)]"
           >

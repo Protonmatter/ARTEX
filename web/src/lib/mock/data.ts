@@ -2811,6 +2811,7 @@ export const tokenSessions: SessionTokenUsage[] = (() => {
     if (item.worker === "mainagent") session = "main";
     else if (item.worker === "planner") session = "plan";
     else if (item.intent_id) session = `intent:${item.intent_id}`;
+    // biome-ignore lint/suspicious/noUnnecessaryConditions: activity can be a result from an unrecognized worker, leaving session empty.
     if (!session) continue;
     const current = totals.get(session) ?? {
       session,

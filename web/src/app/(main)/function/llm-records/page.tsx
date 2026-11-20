@@ -419,30 +419,26 @@ export default function LLMRecordsPage() {
                       <Loader2Icon className="mx-auto h-5 w-5 animate-spin text-muted-foreground" />
                     </TableCell>
                   </TableRow>
-                ) : records.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={8} className="py-12 text-center text-sm text-muted-foreground">
-                      {!recKnown || recEnabled
-                        ? t("No LLM call records yet")
-                        : t("LLM call recording is off. Turn on the Recording toggle above to start capturing calls.")}
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  records.map((rec) => (
+                ) : (() => {
+                  if (records.length === 0) {
+                    return (
+                      <TableRow>
+                        <TableCell colSpan={8} className="py-12 text-center text-sm text-muted-foreground">
+                          {!recKnown || recEnabled
+                            ? t("No LLM call records yet")
+                            : t("LLM call recording is off. Turn on the Recording toggle above to start capturing calls.")}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  }
+                  return records.map((rec) => (
                     <TableRow
                       key={rec.id}
-                      className={cn(
-                        "cursor-pointer",
-                        selected?.id === rec.id && "bg-accent hover:bg-accent",
-                      )}
+                      className={cn("cursor-pointer", selected?.id === rec.id && "bg-accent hover:bg-accent")}
                       onClick={() => setSelected(rec)}
                     >
-                      <TableCell className="text-xs text-muted-foreground tabular-nums">
-                        {fmtTime(rec.ts)}
-                      </TableCell>
-                      <TableCell className="text-xs font-mono text-muted-foreground">
-                        {rec.task_id ? `#${rec.task_id}` : "-"}
-                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground tabular-nums">{fmtTime(rec.ts)}</TableCell>
+                      <TableCell className="text-xs font-mono text-muted-foreground">{rec.task_id ? `#${rec.task_id}` : "-"}</TableCell>
                       <TableCell>
                         <Badge variant="outline" className="text-xs font-mono">
                           {rec.worker || "-"}
@@ -455,9 +451,7 @@ export default function LLMRecordsPage() {
                         <span className="text-xs font-mono">{rec.model || "-"}</span>
                       </TableCell>
                       <TableCell>
-                        <span className={cn("text-xs", rec.latency_ms > 30000 && "text-amber-500")}>
-                          {fmtLatency(rec.latency_ms)}
-                        </span>
+                        <span className={cn("text-xs", rec.latency_ms > 30000 && "text-amber-500")}>{fmtLatency(rec.latency_ms)}</span>
                       </TableCell>
                       <TableCell>
                         <span className="text-xs">
@@ -466,14 +460,18 @@ export default function LLMRecordsPage() {
                       </TableCell>
                       <TableCell>
                         {rec.status === "ok" ? (
-                          <Badge variant="secondary" className="text-xs text-emerald-600">{t("OK")}</Badge>
+                          <Badge variant="secondary" className="text-xs text-emerald-600">
+                            {t("OK")}
+                          </Badge>
                         ) : (
-                          <Badge variant="destructive" className="text-xs">{t("Error")}</Badge>
+                          <Badge variant="destructive" className="text-xs">
+                            {t("Error")}
+                          </Badge>
                         )}
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
+                  ));
+                })()}
               </TableBody>
             </Table>
           </div>

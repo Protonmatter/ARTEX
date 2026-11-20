@@ -98,9 +98,12 @@ function TaskLLMControl({ task, profiles, onUpdated }: { task: Task; profiles: L
   const activeProfile = profiles.find((profile) => profile.id === activeID);
   const currentLabel = exhausted
     ? t("Configuration chain exhausted")
-    : task.llm_rotate
-      ? t("Worker rotation ({count})", { count: chain.length })
-      : (activeProfile?.name ?? (activeID ? t("Config #{id}", { id: activeID }) : t("Follow default config")));
+    : (() => {
+      if (task.llm_rotate) {
+        return t("Worker rotation ({count})", { count: chain.length });
+      }
+      return activeProfile?.name ?? (activeID ? t("Config #{id}", { id: activeID }) : t("Follow default config"));
+    })();
   const activeIndex = chain.indexOf(activeID);
   const backupCount = activeIndex >= 0 ? Math.max(0, chain.length - activeIndex - 1) : 0;
   const currentTitle = [currentLabel, activeProfile?.model, backupCount > 0 ? t("{count} backups", { count: backupCount }) : ""]

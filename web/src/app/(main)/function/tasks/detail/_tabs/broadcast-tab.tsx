@@ -665,14 +665,17 @@ export function BroadcastTab({ taskId }: { taskId: string }) {
               <Skeleton key={i} className="h-12 w-full" />
             ))}
           </div>
-        ) : items.length === 0 ? (
-          <p className="py-10 text-center text-sm text-muted-foreground">
-            {query || kinds.length > 0
-              ? t("No broadcasts match the filters.")
-              : t("This task has not produced any exploration nodes yet.")}
-          </p>
-        ) : (
-          groups.map((group) => (
+        ) : (() => {
+          if (items.length === 0) {
+            return (
+              <p className="py-10 text-center text-sm text-muted-foreground">
+                {query || kinds.length > 0
+                  ? t("No broadcasts match the filters.")
+                  : t("This task has not produced any exploration nodes yet.")}
+              </p>
+            );
+          }
+          return groups.map((group) => (
             <div key={group.day}>
               <div className="py-2 pl-[6.25rem] text-xs font-medium text-muted-foreground">{group.day}</div>
               {group.rows.map((node) => (
@@ -687,8 +690,8 @@ export function BroadcastTab({ taskId }: { taskId: string }) {
                 />
               ))}
             </div>
-          ))
-        )}
+          ));
+        })()}
       </CardContent>
 
       <CardFooter className="flex flex-wrap items-center gap-2 border-t px-4 py-2.5 text-xs text-muted-foreground">

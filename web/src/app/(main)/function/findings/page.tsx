@@ -1267,9 +1267,12 @@ export default function FindingsPage() {
                           <CardTitle className="truncate text-sm">
                             {group.task_id === null
                               ? t("Unlinked / task deleted")
-                              : group.task_name
-                                ? t("{name} (task #{id})", { name: group.task_name, id: group.task_id })
-                                : t("Task #{id}", { id: group.task_id })}
+                              : (() => {
+                                if (group.task_name) {
+                                  return t("{name} (task #{id})", { name: group.task_name, id: group.task_id });
+                                }
+                                return t("Task #{id}", { id: group.task_id });
+                              })()}
                           </CardTitle>
                           <CardDescription className="truncate" title={group.task_description}>
                             {group.task_description || t("Source task unavailable")}

@@ -366,22 +366,25 @@ export default function MCPPage() {
         </div>
         {toolsLoading ? (
           <p className="text-muted-foreground text-sm">{t("Loading…")}</p>
-        ) : tools.length === 0 ? (
-          <p className="text-muted-foreground text-sm">{t("No tools discovered yet; click refresh to fetch again.")}</p>
-        ) : (
-          <div className="flex flex-col divide-y">
-            {tools.map((tool) => (
-              <div key={tool.name} className="py-2.5">
-                <code className="font-mono text-sm">{tool.name}</code>
-                {tool.description && (
-                  <p className="text-muted-foreground mt-0.5 text-xs leading-relaxed">
-                    {tool.description}
-                  </p>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
+        ) : (() => {
+          if (tools.length === 0) {
+            return (
+              <p className="text-muted-foreground text-sm">{t("No tools discovered yet; click refresh to fetch again.")}</p>
+            );
+          }
+          return (
+            <div className="flex flex-col divide-y">
+              {tools.map((tool) => (
+                <div key={tool.name} className="py-2.5">
+                  <code className="font-mono text-sm">{tool.name}</code>
+                  {tool.description && (
+                    <p className="text-muted-foreground mt-0.5 text-xs leading-relaxed">{tool.description}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          );
+        })()}
       </div>
     );
   }
@@ -423,15 +426,20 @@ export default function MCPPage() {
                   <Badge variant="destructive" className="max-w-55 truncate font-normal" title={s.last_connect_err ?? t("connect failed")}>
                     {t("down: {error}", { error: s.last_connect_err ? s.last_connect_err.slice(0, 60) : t("connect failed") })}
                   </Badge>
-                ) : s.last_connect_ok === true ? (
-                  <Badge variant="secondary" className="font-normal">
-                    {t("ok {time}", { time: s.last_connect_at ? new Date(s.last_connect_at).toLocaleTimeString(intlLocale) : "" })}
-                  </Badge>
-                ) : (
-                  <Badge variant="outline" className="text-muted-foreground font-normal">
-                    {t("not connected yet")}
-                  </Badge>
-                )}
+                ) : (() => {
+                  if (s.last_connect_ok === true) {
+                    return (
+                      <Badge variant="secondary" className="font-normal">
+                        {t("ok {time}", { time: s.last_connect_at ? new Date(s.last_connect_at).toLocaleTimeString(intlLocale) : "" })}
+                      </Badge>
+                    );
+                  }
+                  return (
+                    <Badge variant="outline" className="text-muted-foreground font-normal">
+                      {t("not connected yet")}
+                    </Badge>
+                  );
+                })()}
                 <div data-card-control className="ml-auto flex items-center gap-2">
                   <Switch
                     checked={s.enabled}

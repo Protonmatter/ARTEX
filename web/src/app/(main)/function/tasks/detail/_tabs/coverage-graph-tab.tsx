@@ -262,7 +262,8 @@ function nodeStroke(d: G6NodeDatum): string {
 // Drawers: asset nodes show details; fold nodes show the hidden list + "Show more".
 // ---------------------------------------------------------------------------
 function DetailRow({ label, children }: { label: string; children: React.ReactNode }) {
-  if (children === undefined || children === null || children === "") return null;
+  // biome-ignore lint/suspicious/noUnnecessaryConditions: ReactNode permits null from optional detail fields.
+  if (children == null || children === "") return null;
   return (
     <div className="flex items-start gap-3 py-1 text-sm">
       <span className="text-muted-foreground w-16 shrink-0">{label}</span>
@@ -358,11 +359,12 @@ function AssetSheet({
                   <DetailRow label={t("Type")}>{meta.label}</DetailRow>
                   <DetailRow label={t("Test status")}>
                     {node.in_scope ? (
-                      node.tested ? (
-                        <span className="text-emerald-600 dark:text-emerald-400">{t("Tested")}</span>
-                      ) : (
-                        <span className="text-neutral-500">{t("Untested")}</span>
-                      )
+                      (() => {
+                        if (node.tested) {
+                          return <span className="text-emerald-600 dark:text-emerald-400">{t("Tested")}</span>;
+                        }
+                        return <span className="text-neutral-500">{t("Untested")}</span>;
+                      })()
                     ) : (
                       <span className="text-neutral-400">{t("Out of scope (connecting node)")}</span>
                     )}
@@ -517,7 +519,12 @@ function GraphInner({ taskId, coverageEnabled = true }: { taskId: string; covera
   // Structure signature: rebuild the graph and re-run layout only when the visible node/edge set changes, to avoid needless jitter.
   const sig = React.useMemo(
     () =>
-      `${renderNodes.map((n) => `${n.key}:${n.fold ? "f" : n.node.tested ? "t" : "u"}`).sort().join(",")}|${renderEdges.length}`,
+      `${renderNodes.map((n) => `${n.key}:${n.fold ? "f" : (() => {
+        if (n.node.tested) {
+          return "t";
+        }
+        return "u";
+      })()}`).sort().join(",")}|${renderEdges.length}`,
     [renderNodes, renderEdges],
   );
 

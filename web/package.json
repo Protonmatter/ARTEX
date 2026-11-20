@@ -17,7 +17,8 @@
     "test:replay": "node --test scripts/replay.test.mjs",
     "test:upload": "node --test scripts/upload.test.mjs",
     "test:i18n": "node scripts/check-i18n.mjs",
-    "test:auth": "node --test scripts/auth.test.mjs"
+    "test:auth": "node --test scripts/auth.test.mjs",
+    "test:noise": "node --test scripts/noise-status.test.mjs"
   },
   "lint-staged": {
     "*.{js,ts,jsx,tsx}": [

@@ -925,26 +925,41 @@ export default function SkillsPage() {
                   )}
                   {usageLoading ? (
                     <p className="text-xs text-muted-foreground">{t("Loading call details…")}</p>
-                  ) : usageCalls.length > 0 ? (
-                    <div className="rounded-md border">
-                      <div className="border-b px-2 py-1 text-xs text-muted-foreground">
-                        {t("Last {count} calls", { count: usageCalls.length })}
-                      </div>
-                      <div className="max-h-56 overflow-y-auto">
-                        {usageCalls.map((c, i) => (
-                          <div key={`${c.ts}-${i}`} className="flex items-center gap-2 border-b px-2 py-1 text-xs last:border-b-0">
-                            <span className="tabular-nums text-muted-foreground">{fmtTime(c.ts)}</span>
-                            <Badge variant="outline" className="font-normal">{c.agent_key || "—"}</Badge>
-                            <span className="ml-auto text-muted-foreground">
-                              {c.task_id > 0 ? t("Task #{id}", { id: c.task_id }) : c.session_id ? t("Chat session") : "—"}
-                            </span>
+                  ) : (() => {
+                    if (usageCalls.length > 0) {
+                      return (
+                        <div className="rounded-md border">
+                          <div className="border-b px-2 py-1 text-xs text-muted-foreground">
+                            {t("Last {count} calls", { count: usageCalls.length })}
                           </div>
-                        ))}
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="text-xs text-muted-foreground">{t("No call records yet.")}</p>
-                  )}
+                          <div className="max-h-56 overflow-y-auto">
+                            {usageCalls.map((c) => (
+                              <div
+                                key={`${c.ts}:${c.agent_key}:${c.task_id}:${c.session_id}`}
+                                className="flex items-center gap-2 border-b px-2 py-1 text-xs last:border-b-0"
+                              >
+                                <span className="tabular-nums text-muted-foreground">{fmtTime(c.ts)}</span>
+                                <Badge variant="outline" className="font-normal">
+                                  {c.agent_key || "—"}
+                                </Badge>
+                                <span className="ml-auto text-muted-foreground">
+                                  {c.task_id > 0
+                                    ? t("Task #{id}", { id: c.task_id })
+                                    : (() => {
+                                        if (c.session_id) {
+                                          return t("Chat session");
+                                        }
+                                        return "—";
+                                      })()}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    }
+                    return <p className="text-xs text-muted-foreground">{t("No call records yet.")}</p>;
+                  })()}
                 </div>
 
                 {/* ── left: linked MCP + visibility ── */}
@@ -1031,9 +1046,12 @@ export default function SkillsPage() {
             <AlertDialogDescription>
               {pendingDelete?.kind === "skill"
                 ? t("This deletes all of the skill's files, MCP links and visibility config. This action cannot be undone.")
-                : pendingDelete?.kind === "dir"
-                  ? t("This also deletes all files under the folder. This action cannot be undone.")
-                  : t("This action cannot be undone.")}
+                : (() => {
+                  if (pendingDelete?.kind === "dir") {
+                    return t("This also deletes all files under the folder. This action cannot be undone.");
+                  }
+                  return t("This action cannot be undone.");
+                })()}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -87,7 +87,7 @@ Plan a short maintenance window for either rotation.
   the web static build; `--go-only` / `--web-only` narrow the run.
 - `scripts/smoke_live.py <embedded-UI-binary>` — starts a fresh loopback process
   against an isolated, empty PostgreSQL database named by `RECONRIVET_PG_DSN`.
-  It checks readiness, one-time setup, login, authenticated and anonymous health,
+  It checks the startup banner, readiness, one-time setup, login, authenticated and anonymous health,
   HAR export identity, and the embedded login page. CI builds the binary and runs
   this check with disposable database and local data. The script terminates the
   process and removes local data; the caller must drop the test database.

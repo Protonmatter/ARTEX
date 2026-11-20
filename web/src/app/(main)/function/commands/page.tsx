@@ -221,22 +221,23 @@ export default function CommandsPage() {
                       <Loader2Icon className="mx-auto h-5 w-5 animate-spin text-muted-foreground" />
                     </TableCell>
                   </TableRow>
-                ) : commands.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="py-12 text-center text-sm text-muted-foreground">
-                      {t("No tool execution records yet")}
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  commands.map((cmd) => (
+                ) : (() => {
+                  if (commands.length === 0) {
+                    return (
+                      <TableRow>
+                        <TableCell colSpan={6} className="py-12 text-center text-sm text-muted-foreground">
+                          {t("No tool execution records yet")}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  }
+                  return commands.map((cmd) => (
                     <TableRow
                       key={cmd.id}
                       className={cn("cursor-pointer", selected?.id === cmd.id && "bg-accent hover:bg-accent")}
                       onClick={() => setSelected(cmd)}
                     >
-                      <TableCell className="text-xs text-muted-foreground tabular-nums">
-                        {fmtTime(cmd.created_at)}
-                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground tabular-nums">{fmtTime(cmd.created_at)}</TableCell>
                       <TableCell className="text-xs font-mono text-muted-foreground">#{cmd.exploration_id}</TableCell>
                       <TableCell>
                         <Badge variant="outline" className="text-xs font-mono">
@@ -249,9 +250,7 @@ export default function CommandsPage() {
                         </Badge>
                       </TableCell>
                       <TableCell className="max-w-0">
-                        <code className="block truncate font-mono text-xs">
-                          {truncate(toolInput(cmd.command), CMD_MAX_LEN)}
-                        </code>
+                        <code className="block truncate font-mono text-xs">{truncate(toolInput(cmd.command), CMD_MAX_LEN)}</code>
                       </TableCell>
                       <TableCell>
                         {cmd.is_error ? (
@@ -265,8 +264,8 @@ export default function CommandsPage() {
                         )}
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
+                  ));
+                })()}
               </TableBody>
             </Table>
           </div>
@@ -299,38 +298,41 @@ export default function CommandsPage() {
             <div className="py-10 text-center">
               <Loader2Icon className="mx-auto h-5 w-5 animate-spin text-muted-foreground" />
             </div>
-          ) : stats.length === 0 ? (
-            <div className="py-10 text-center text-sm text-muted-foreground">{t("No stats data")}</div>
-          ) : (
-            <div className="-mr-2 max-h-[55vh] space-y-1 overflow-auto pr-2">
-              {stats.map((s) => (
-                <div key={s.tool} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-md p-2">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="truncate font-mono text-xs font-medium">{s.tool}</span>
-                      {s.errors > 0 && (
-                        <span className="text-[11px] tabular-nums text-red-600 dark:text-red-400">
-                          {t("Failed {count}", { count: s.errors })}
-                        </span>
-                      )}
+          ) : (() => {
+            if (stats.length === 0) {
+              return <div className="py-10 text-center text-sm text-muted-foreground">{t("No stats data")}</div>;
+            }
+            return (
+              <div className="-mr-2 max-h-[55vh] space-y-1 overflow-auto pr-2">
+                {stats.map((s) => (
+                  <div key={s.tool} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-md p-2">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="truncate font-mono text-xs font-medium">{s.tool}</span>
+                        {s.errors > 0 && (
+                          <span className="text-[11px] tabular-nums text-red-600 dark:text-red-400">
+                            {t("Failed {count}", { count: s.errors })}
+                          </span>
+                        )}
+                      </div>
+                      <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted">
+                        <div
+                          className="h-full rounded-full bg-primary"
+                          style={{ width: `${statsMax > 0 ? (s.total / statsMax) * 100 : 0}%` }}
+                        />
+                      </div>
                     </div>
-                    <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted">
-                      <div
-                        className="h-full rounded-full bg-primary"
-                        style={{ width: `${statsMax > 0 ? (s.total / statsMax) * 100 : 0}%` }}
-                      />
+                    <div className="text-right">
+                      <div className="text-xs font-semibold tabular-nums">{s.total}</div>
+                      <div className="text-[11px] tabular-nums text-muted-foreground">
+                        {statsTotal > 0 ? ((s.total / statsTotal) * 100).toFixed(1) : "0.0"}%
+                      </div>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className="text-xs font-semibold tabular-nums">{s.total}</div>
-                    <div className="text-[11px] tabular-nums text-muted-foreground">
-                      {statsTotal > 0 ? ((s.total / statsTotal) * 100).toFixed(1) : "0.0"}%
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+                ))}
+              </div>
+            );
+          })()}
         </DialogContent>
       </Dialog>
 

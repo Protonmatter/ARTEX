@@ -356,7 +356,7 @@ export function AssetDslSearch({
             {suggestions.map((s, i) => (
               <button
                 type="button"
-                key={i}
+                key={`${s.kind}:${s.label}:${s.replaceStart}:${s.insertText}`}
                 className={cn(
                   "flex w-full cursor-pointer items-center gap-3 px-3 py-1.5 text-left",
                   i === selIdx ? "bg-accent" : "hover:bg-accent/50",
@@ -378,11 +378,12 @@ export function AssetDslSearch({
         <p className="pl-1 text-[11px] text-muted-foreground">
           {loading ? (
             t("Searching…")
-          ) : error ? (
-            <span className="text-destructive">{error}</span>
-          ) : (
-            t("Found {count}", { count: count ?? 0 })
-          )}
+          ) : (() => {
+            if (error) {
+              return <span className="text-destructive">{error}</span>;
+            }
+            return t("Found {count}", { count: count ?? 0 });
+          })()}
         </p>
       )}
     </div>

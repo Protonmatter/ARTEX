@@ -20,11 +20,13 @@ export const auth = {
   setToken(token: string): void {
     localStorage.setItem(TOKEN_KEY, token);
     // Also write a cookie for the Next.js middleware to read server-side
+    // biome-ignore lint/suspicious/noDocumentCookie: the route guard reads this same-site cookie and the browser must write it after API login.
     document.cookie = `${TOKEN_KEY}=${encodeURIComponent(token)}; path=/; max-age=${COOKIE_MAX_AGE}; SameSite=Lax`;
   },
 
   clearToken(): void {
     localStorage.removeItem(TOKEN_KEY);
+    // biome-ignore lint/suspicious/noDocumentCookie: remove the route-guard cookie alongside local token state.
     document.cookie = `${TOKEN_KEY}=; path=/; max-age=0`;
   },
 
