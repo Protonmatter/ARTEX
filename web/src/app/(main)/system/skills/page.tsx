@@ -69,19 +69,21 @@ function buildTree(entries: string[]): TreeNode[] {
   const root: TreeNode[] = [];
   const dirMap = new Map<string, TreeNode>();
 
-  function ensureDir(dirPath: string, parentNodes: TreeNode[]): TreeNode[] {
-    if (dirMap.has(dirPath)) return dirMap.get(dirPath)!.children;
+  function ensureDir(dirPath: string): TreeNode[] {
+    const existing = dirMap.get(dirPath);
+    if (existing) return existing.children;
     const parts = dirPath.split("/");
     let nodes = root;
     let cur = "";
     for (const part of parts) {
       cur = cur ? `${cur}/${part}` : part;
-      if (!dirMap.has(cur)) {
-        const d: TreeNode = { name: part, path: cur, type: "dir", children: [] };
-        nodes.push(d);
-        dirMap.set(cur, d);
+      let dir = dirMap.get(cur);
+      if (!dir) {
+        dir = { name: part, path: cur, type: "dir", children: [] };
+        nodes.push(dir);
+        dirMap.set(cur, dir);
       }
-      nodes = dirMap.get(cur)!.children;
+      nodes = dir.children;
     }
     return nodes;
   }
@@ -89,7 +91,7 @@ function buildTree(entries: string[]): TreeNode[] {
   for (const entry of [...entries].sort()) {
     if (entry.endsWith("/")) {
       // Explicit directory entry — ensure the node exists (may already be created)
-      ensureDir(entry.slice(0, -1), root);
+      ensureDir(entry.slice(0, -1));
     } else {
       // File — ensure parent dirs exist, then push file node
       const parts = entry.split("/");
@@ -97,12 +99,13 @@ function buildTree(entries: string[]): TreeNode[] {
       let cur = "";
       for (let i = 0; i < parts.length - 1; i++) {
         cur = cur ? `${cur}/${parts[i]}` : parts[i];
-        if (!dirMap.has(cur)) {
-          const d: TreeNode = { name: parts[i], path: cur, type: "dir", children: [] };
-          nodes.push(d);
-          dirMap.set(cur, d);
+        let dir = dirMap.get(cur);
+        if (!dir) {
+          dir = { name: parts[i], path: cur, type: "dir", children: [] };
+          nodes.push(dir);
+          dirMap.set(cur, dir);
         }
-        nodes = dirMap.get(cur)!.children;
+        nodes = dir.children;
       }
       const fname = parts[parts.length - 1];
       if (fname) nodes.push({ name: fname, path: entry, type: "file", children: [] });
@@ -161,7 +164,7 @@ function SkillsOverview({
     const neverUsed = skills.filter((s) => s.calls === 0);
     const recent = skills
       .filter((s) => s.last_used)
-      .sort((a, b) => (a.last_used! < b.last_used! ? 1 : -1))
+      .sort((a, b) => (b.last_used ?? "").localeCompare(a.last_used ?? ""))
       .slice(0, 6);
     const missingCalls = missing.reduce((n, m) => n + m.calls, 0);
     return {

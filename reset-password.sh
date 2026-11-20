@@ -18,7 +18,7 @@
 #   ./reset-password.sh                          # local, auto-reads config.json/env, prompts for the new password
 #   ./reset-password.sh -p 'New-Passphrase!'     # local, new password given directly (at least 12 characters)
 #   ./reset-password.sh --dsn postgres://u:p@h:5432/reconrivet
-#   ./reset-password.sh -H 127.0.0.1 -P 5433 -U autopentest -W pass -d reconrivet
+#   ./reset-password.sh -H 127.0.0.1 -P 5433 -U reconrivet -W pass -d reconrivet
 #   ./reset-password.sh -m docker                # docker deployment (reads POSTGRES_* from .env)
 #   ./reset-password.sh -m docker -c pg-container-name --exec docker
 #

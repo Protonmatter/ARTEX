@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { toast } from "sonner";
-import { EyeIcon, GitCompareIcon, InfoIcon, PencilIcon, RotateCcwIcon, SaveIcon, Trash2Icon, XIcon } from "lucide-react";
+import { EyeIcon, GitCompareIcon, PencilIcon, RotateCcwIcon, SaveIcon, Trash2Icon, XIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -877,7 +877,7 @@ function AgentTriggersTab({ agentKey, agent }: { agentKey: string; agent?: Agent
     setTaskTimeoutMsg(trg.task_timeout_message);
     setToolCallMsg(trg.tool_call_message);
     setTaskCreateMsg(trg.task_create_message);
-    setToolNames(trg.tool_names ?? []);
+    setToolNames(trg.tool_names);
   }
 
   // submit creates or saves changes based on editingId; editing keeps the trigger's enabled state.

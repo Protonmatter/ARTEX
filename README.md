@@ -92,6 +92,10 @@ the ordered `llm_profile_ids`. Omitting `llm_rotate` on an update preserves its 
 
 ## Screenshots
 
+These screenshots use the bundled synthetic demo data.
+
+![ReconRivet dashboard](web/media/dashboard.png)
+
 | Tasks | Findings |
 | :---: | :---: |
 | ![Tasks](screenshots/tasks.png) | ![Findings](screenshots/findings.png) |
@@ -104,7 +108,7 @@ the ordered `llm_profile_ids`. Omitting `llm_rotate` on an update preserves its 
 | :---: | :---: |
 | ![Asset coverage graph](screenshots/assets_test.png) | ![Traffic](screenshots/traffic.png) |
 
-| Human-in-the-loop chat | Interception approvals |
+| Human-in-the-loop chat | Interception rules |
 | :---: | :---: |
 | ![Chat](screenshots/chat.png) | ![Interception](screenshots/intercept.png) |
 
@@ -666,6 +670,7 @@ CGO_ENABLED=0 go build -tags embedui -o reconrivet ./cmd/reconrivet
 ```
 
 - Backend: `go run ./cmd/reconrivet` (without `-tags embedui`, the frontend is not embedded)
+- Web dev proxy: set `RECONRIVET_API` when the backend is not at `http://localhost:8787`.
 - Frontend: `cd web && npm run dev` (`/api` is reverse-proxied to the backend, with hot reload)
 - Tests: `go test ./...`
 - Reproduce all CI checks locally: `./scripts/verify.sh` (add `--full` for `-race` and the static web build)

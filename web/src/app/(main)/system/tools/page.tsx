@@ -653,11 +653,12 @@ function CustomToolDialog({
         return;
       }
     }
+    if (!isNew && !tool) return;
     setSaving(true);
     const payload = { description, schema: kind === "shell" ? {} : schema, agents: bound, enabled, kind, exec: buildExec(), deferred: kind === "shell" ? false : deferred };
     try {
       if (isNew) await api.createCustomTool({ key: key.trim(), ...payload });
-      else await api.updateCustomTool(tool!.key, payload);
+      else if (tool) await api.updateCustomTool(tool.key, payload);
       toast.success(isNew ? t("Custom tool created") : t("Saved"));
       onSaved();
     } catch (e) {

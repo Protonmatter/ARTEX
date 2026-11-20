@@ -59,10 +59,10 @@ const dict = DICTIONARIES[locale];
 export type TVars = Record<string, string | number>;
 
 export function t(key: string, vars?: TVars): string {
-  const s = Object.prototype.hasOwnProperty.call(dict, key) ? dict[key] : key;
+  const s = Object.hasOwn(dict, key) ? dict[key] : key;
   if (!vars) return s;
   return s.replace(/\{(\w+)\}/g, (m, name: string) =>
-    Object.prototype.hasOwnProperty.call(vars, name) ? String(vars[name]) : m,
+    Object.hasOwn(vars, name) ? String(vars[name]) : m,
   );
 }
 
