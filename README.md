@@ -232,7 +232,11 @@ worker remains confined to the intent it claimed.
   </details>
 - **Verified findings**: findings carry a POE level, a verification status and a note; a finding is
   `verified` only when a bound proof/response and verbatim evidence quotes support it. Gzip/deflate
-  bodies are decoded before the quote check.
+  bodies are decoded before the quote check. The findings table supports bulk status updates, and
+  the report and export show each finding's proof strength next to its status.
+- **Traffic replay**: open a captured exchange and replay the recorded request (method, URL,
+  headers and stored body) from the traffic detail; replay stays disabled while only the body
+  preview is loaded.
 - **Vulnerability retest loop**: a dedicated `retester` agent re-runs a finding with optional fixed
   version/conditions, records `Still reproducible / Fixed / Cannot confirm`, and can move the
   finding to `Fixed` automatically. Original evidence and reports are preserved.
@@ -294,6 +298,9 @@ worker remains confined to the intent it claimed.
   for every call.
 - **MCP servers, skills, memory and a workspace**: extend the agent with remote tools and reusable
   prompt/playbook material.
+- **Web search**: the agent's search tool uses Brave, Tavily or the opt-in Keenable backend,
+  configured in **System → Settings** with the key encrypted at rest; search can also egress
+  through its own proxy.
 - **Single binary**: the Next.js UI is embedded with `go:embed`; PostgreSQL is the only external
   dependency.
 
@@ -422,6 +429,14 @@ runtime supports it.
 `https://api.anthropic.com`); ARTEX appends `/v1/messages`. OpenAI-format providers append
 `/chat/completions` (or `/responses` for `openai-responses`), so their base **does** end in `/v1`
 (for example `https://api.openai.com/v1`).
+
+**OpenAI-compatible gateways**: any provider that serves an OpenAI-style
+`/v1/chat/completions` endpoint works through the **OpenAI** format — no dedicated format
+needed. Create a profile with format **OpenAI**, set **Base URL** to the gateway's `/v1`
+root, paste the key, then click the **↻** button next to *Model* to load the provider's
+catalog (`GET /v1/models`) and pick a model; models the provider adds later appear on the
+next refresh. For example, [NotHoly](https://notholy.com) (offensive-security models) uses
+base URL `https://api.notholy.com/v1` with an API key from its console.
 
 **Concurrency**: work agents per task, in "System Settings" (default 3).
 
@@ -649,6 +664,7 @@ CGO_ENABLED=0 go build -tags embedui -o artex ./cmd/artex
 - Backend: `go run ./cmd/artex` (without `-tags embedui`, the frontend is not embedded)
 - Frontend: `cd web && npm run dev` (`/api` is reverse-proxied to the backend, with hot reload)
 - Tests: `go test ./...`
+- Reproduce all CI checks locally: `./scripts/verify.sh` (add `--full` for `-race` and the static web build)
 - Mock preview (no backend): `cd web && NEXT_PUBLIC_MOCK=1 npm run dev`
 
 ---
@@ -715,6 +731,10 @@ flowchart TB
 | **agent** | goals / planner / worker / mainagent; `ToolSet` exposes the dual graphs as LLM tools |
 | **db** | PostgreSQL persistence (pgx); embedded schema and numbered migrations applied at startup |
 | **Supporting** | Recording MITM proxy, approval gate, async enrichment, MCP/skills/memory/report |
+
+For the code-level map (execution flow, trust boundaries, decisions) see
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md); for startup, configuration precedence,
+backup and key rotation see [docs/OPS.md](docs/OPS.md).
 
 ---
 
