@@ -44,7 +44,9 @@ func TestRecordFactInputSchemaUpgrade(t *testing.T) {
 	}
 	check := func(schema map[string]any) {
 		t.Helper()
-		if required, ok := schema["required"].([]any); !ok || len(required) != 1 || required[0] != "facts" {
+		rawRequired, _ := json.Marshal(schema["required"])
+		var required []string
+		if err := json.Unmarshal(rawRequired, &required); err != nil || len(required) != 1 || required[0] != "facts" {
 			t.Fatalf("facts-only contract not required: %#v", schema["required"])
 		}
 		if _, ok := schema["anyOf"]; ok {

@@ -55,7 +55,7 @@ Examples below use current naming; Git history retains the original release text
 ### Fixed
 
 - **Fact write-back contract**: `record_fact` now advertises only `facts[]` with complete items, so providers are not asked to send top-level fact fields that the batch handler refuses. Facts without an explicit intent id link to the running worker intent. Three consecutive fully refused calls stop the worker with an actionable cause instead of consuming unlimited turns.
-- **Go security patch level**: CI, release binaries and the Docker build use Go 1.26.11.
+- **Go security patch level**: CI, release binaries and the Docker build use Go 1.26.11. Compression and cryptography dependencies were updated after `govulncheck` found reachable calls in the prior compression version; the updated dependency graph has no reported vulnerabilities.
 - **Interrupted stream metering**: an LLM stream whose consumer stops before the terminal event records error status and its partial token usage once, even when the context was not cancelled.
 - **Windows skill paths**: skill file API paths and file listings keep forward slashes on Windows, matching the frontend and the archive format.
 - **Windows Python discovery**: custom script tools probe Python 3 candidates before selecting one, so a nonfunctional Microsoft Store alias does not hide an installed interpreter.
