@@ -163,7 +163,16 @@ func TestSideUsageRecordedOnceOnConsumerCancellation(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer pg.Close()
-	for _, early := range []bool{false, true} {
+	for _, tc := range []struct {
+		name              string
+		early             bool
+		cancelBeforeBreak bool
+		wantStatus        string
+	}{
+		{name: "complete", wantStatus: "ok"},
+		{name: "cancelled early", early: true, cancelBeforeBreak: true, wantStatus: "error"},
+		{name: "consumer stopped early", early: true, wantStatus: "error"},
+	} {
 		profile := "btw-metering-" + uuid.NewString()
 		ctx, cancel := context.WithCancel(transcript.WithSessionID(t.Context(), "exp0-btw-test"))
 		recorder := Wrap(meteredStreamProvider{}, pg, "fixture", profile, "", "", func() bool { return false })
@@ -171,8 +180,10 @@ func TestSideUsageRecordedOnceOnConsumerCancellation(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if early && event.Type == llm.SEMessageDelta {
-				cancel()
+			if tc.early && event.Type == llm.SEMessageDelta {
+				if tc.cancelBeforeBreak {
+					cancel()
+				}
 				break // Consumer exits before the provider can return a cancellation event.
 			}
 		}
@@ -185,12 +196,8 @@ FROM llm_usage WHERE profile_name=$1`, profile).Scan(&count, &input, &output, &w
 		if err != nil {
 			t.Fatal(err)
 		}
-		wantStatus := "ok"
-		if early {
-			wantStatus = "error"
-		}
-		if count != 1 || input != 23 || output != 5 || worker != "btw" || status != wantStatus {
-			t.Fatalf("early=%v: count=%d usage=%d/%d worker=%q status=%q", early, count, input, output, worker, status)
+		if count != 1 || input != 23 || output != 5 || worker != "btw" || status != tc.wantStatus {
+			t.Fatalf("%s: count=%d usage=%d/%d worker=%q status=%q, want status=%q", tc.name, count, input, output, worker, status, tc.wantStatus)
 		}
 	}
 }
