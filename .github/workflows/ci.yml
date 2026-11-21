@@ -93,7 +93,7 @@ jobs:
           go-version-file: go.mod
       - name: fresh database scope and approval regressions
         run: go test -p 1 ./agent -run '^(TestAssociatedCompanyScopeAvailableToAgent|TestCaptureApprovalLifecycle)$' -count=1 -v
-      - name: cancellation metering race
+      - name: interrupted stream metering race
         if: always()
         run: go test -race ./llmrec -run '^TestSideUsageRecordedOnceOnConsumerCancellation$' -count=20 -v
 

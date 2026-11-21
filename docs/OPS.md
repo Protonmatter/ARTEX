@@ -88,8 +88,9 @@ Plan a short maintenance window for either rotation.
 - `scripts/smoke_live.py <embedded-UI-binary>` — starts a fresh loopback process
   against an isolated, empty PostgreSQL database named by `RECONRIVET_PG_DSN`.
   It checks the startup banner, readiness, one-time setup, login, authenticated and anonymous health,
-  HAR export identity, and the embedded login page. CI builds the binary and runs
-  this check with disposable database and local data. The script terminates the
+  HAR export identity, and the embedded login page. CI builds a release archive,
+  verifies its checksum, and runs this check on the extracted binary with a
+  disposable database and local data. The script terminates the
   process and removes local data; the caller must drop the test database.
 - `./scripts/backup.sh --help` — backup options.
 

@@ -166,12 +166,14 @@ func TestSideUsageRecordedOnceOnConsumerCancellation(t *testing.T) {
 	for _, tc := range []struct {
 		name              string
 		early             bool
+		breakAtStop       bool
 		cancelBeforeBreak bool
 		wantStatus        string
 	}{
 		{name: "complete", wantStatus: "ok"},
 		{name: "cancelled early", early: true, cancelBeforeBreak: true, wantStatus: "error"},
 		{name: "consumer stopped early", early: true, wantStatus: "error"},
+		{name: "consumer stopped at terminal event", breakAtStop: true, wantStatus: "ok"},
 	} {
 		profile := "btw-metering-" + uuid.NewString()
 		ctx, cancel := context.WithCancel(transcript.WithSessionID(t.Context(), "exp0-btw-test"))
@@ -185,6 +187,9 @@ func TestSideUsageRecordedOnceOnConsumerCancellation(t *testing.T) {
 					cancel()
 				}
 				break // Consumer exits before the provider can return a cancellation event.
+			}
+			if tc.breakAtStop && event.Type == llm.SEMessageStop {
+				break
 			}
 		}
 		cancel()
