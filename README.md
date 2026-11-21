@@ -304,6 +304,9 @@ worker remains confined to the intent it claimed.
   multiple profiles per task with automatic failover.
 - **Token accounting**: per-task and per-session usage, cache reads/writes, and an LLM record view
   for every call.
+- **Opt-in context size telemetry**: `RECONRIVET_CONTEXT_TELEMETRY=1` stores only per-call section sizes,
+  counts and token usage. The authenticated `/api/llm/context/summary` endpoint reports input
+  percentiles and cache-read ratios; see [context telemetry](docs/context-telemetry.md).
 - **MCP servers, skills, memory and a workspace**: extend the agent with remote tools and reusable
   prompt/playbook material.
 - **Web search**: the agent's search tool uses Brave, Tavily or the opt-in Keenable backend,

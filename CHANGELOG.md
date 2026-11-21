@@ -8,6 +8,7 @@ Examples below use current naming; Git history retains the original release text
 
 ### Added
 
+- **Opt-in LLM context size telemetry**: per-call section byte counts, tool and message counts, and token/cache usage can be queried by worker and model without storing prompt content. Off by default; see `docs/context-telemetry.md`.
 - **Target noise governor**: one shared egress governor paces ReconRivet's own HTTP requests (WebFetch, the http custom tools and the enrich probe) against a noise profile (`off` by default, `quiet`, `balanced`, `aggressive`): a per-host token bucket with jitter, per-host and global in-flight caps, 429/503 backoff, GET deduplication with a short cache, and a configurable target User-Agent (`RECONRIVET_TARGET_USER_AGENT`). Off is a strict passthrough (#205).
 - **Low-and-slow prompt block**: when a noise profile is set, the planner, worker, main agent and chat prompts carry the per-host limits of the profile and the exact rate or delay flags for nmap, nuclei, httpx, katana, ffuf, dalfox and sqlmap; with the profile off the prompts are unchanged (#212).
 - **Noise profile at runtime**: System settings has a **Target noise** card. It sets the profile (`off`, `quiet`, `balanced`, `aggressive`) through the `noise_profile` setting, which takes precedence over `RECONRIVET_NOISE_PROFILE`. The change applies to the next WebFetch, http custom tool and enrich request, and to the next agent prompt, without a restart. The card also shows the per-host counters, which `GET /api/settings/noise` returns (#233).
