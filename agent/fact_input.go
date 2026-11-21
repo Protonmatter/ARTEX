@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"strings"
 )
 
 // Match strings.TrimSpace, including Unicode whitespace, in the published schema.
@@ -18,8 +19,8 @@ func factAssetIDSchema() map[string]any {
 
 func factItemSchema() map[string]any {
 	schema := obj(map[string]any{
-		"summary":          str("Required on every fact: a non-empty one-sentence summary of this conclusion. Batch items do not inherit summary from the top level."),
-		"intent_id":        idp("The intent that produced this fact; only this field inherits from the top level in a batch."),
+		"summary":          str("Required: a non-empty one-sentence summary of this conclusion."),
+		"intent_id":        idp("The intent that produced this fact. Omit to link it to the intent this worker is running."),
 		"detail":           str("Details of this fact, including all related observations."),
 		"evidence":         str("One line of key evidence: the command and the most proving output lines. Put longer output in detail."),
 		"confidence":       str("observed (seen directly in output) | inferred (inferred from phenomena). Label negative conclusions honestly."),
@@ -35,65 +36,41 @@ func factItemSchema() map[string]any {
 }
 
 func recordFactSchema() map[string]any {
-	props := factItemSchema()["properties"].(map[string]any)
-	props["facts"] = map[string]any{
+	schema := obj(map[string]any{"facts": map[string]any{
 		"type": "array", "minItems": 1, "items": factItemSchema(),
-		"description": "A non-empty batch of complete facts. Every item needs its own summary. Only intent_id inherits from the top level. Returned ids match item order; retry only failed indices.",
-	}
-	schema := obj(props)
-	// Providers reject root-level anyOf. The handler enforces single/batch mode.
+		"description": "The facts to record, usually exactly one. Every item is a complete fact with its own summary. This is the only top-level property; put all fact fields inside its item.",
+	}}, "facts")
 	schema["additionalProperties"] = false
 	return schema
 }
 
-// RepairRecordFactSchema restores the single/batch input contract in stored or
-// cached schemas, preserving annotations only on fields the handler accepts.
+// RepairRecordFactSchema publishes one facts-only shape for stored or cached
+// schemas while retaining operator annotations on the facts array and its items.
+// The handler continues to validate older shapes itself.
 func RepairRecordFactSchema(stored map[string]any) map[string]any {
-	raw, _ := json.Marshal(stored)
-	var out map[string]any
-	_ = json.Unmarshal(raw, &out)
-	if out == nil {
-		out = map[string]any{}
+	out := recordFactSchema()
+	facts := out["properties"].(map[string]any)["facts"].(map[string]any)
+	storedProps, _ := stored["properties"].(map[string]any)
+	storedFacts, _ := storedProps["facts"].(map[string]any)
+	if storedFacts == nil {
+		return out
 	}
-	mergeFactContract(out, recordFactSchema())
-	// A batch requires summaries on its items, never a redundant top-level one.
-	delete(out, "required")
-	delete(out, "anyOf")
-	canonical := recordFactSchema()["properties"].(map[string]any)
-	props := out["properties"].(map[string]any)
-	for name := range props {
-		if _, known := canonical[name]; !known {
-			delete(props, name)
-		}
+	if desc, ok := storedFacts["description"].(string); ok && strings.TrimSpace(desc) != "" {
+		facts["description"] = desc
 	}
-	items := props["facts"].(map[string]any)["items"].(map[string]any)
-	itemProps := items["properties"].(map[string]any)
-	for name := range itemProps {
-		if _, known := canonical[name]; !known || name == "facts" {
-			delete(itemProps, name)
+	storedItems, _ := storedFacts["items"].(map[string]any)
+	storedItemProps, _ := storedItems["properties"].(map[string]any)
+	itemProps := facts["items"].(map[string]any)["properties"].(map[string]any)
+	for name, raw := range itemProps {
+		old, _ := storedItemProps[name].(map[string]any)
+		prop := raw.(map[string]any)
+		for _, annotation := range []string{"description", "default"} {
+			if value, ok := old[annotation]; ok && value != nil {
+				prop[annotation] = value
+			}
 		}
 	}
 	return out
-}
-
-func mergeFactContract(dst, src map[string]any) {
-	for key, value := range src {
-		if key == "description" || key == "default" {
-			if _, ok := dst[key]; ok {
-				continue
-			}
-		}
-		if child, ok := value.(map[string]any); ok {
-			target, _ := dst[key].(map[string]any)
-			if target == nil {
-				target = map[string]any{}
-				dst[key] = target
-			}
-			mergeFactContract(target, child)
-		} else {
-			dst[key] = value
-		}
-	}
 }
 
 type recordFactInput struct {

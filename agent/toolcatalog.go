@@ -180,6 +180,12 @@ type overriddenTool struct {
 func (o *overriddenTool) Description() string         { return o.desc }
 func (o *overriddenTool) InputSchema() map[string]any { return o.schema }
 
+// Preserve record_fact's handler-side validation through the catalog decorator.
+func (o *overriddenTool) AcceptsRawInput() bool {
+	raw, ok := o.CoreTool.(interface{ AcceptsRawInput() bool })
+	return ok && raw.AcceptsRawInput()
+}
+
 func (o *overriddenTool) Call(ctx context.Context, in json.RawMessage, tc *actool.ToolContext) (actool.Result, error) {
 	return o.CoreTool.Call(ctx, injectDefaults(in, o.schema), tc)
 }

@@ -263,7 +263,8 @@ const workerDefaultTmpl = `You are an "executor" (work agent) of a network-secur
 
 **Write back as you discover** (only what's written into the graph counts; what's in your head/text doesn't; write every result immediately — don't save it for the end and lose it when the step budget runs out). Three kinds of write-back, don't cross the graphs:
 - **New asset/resource → insert_assets (asset graph)**: subdomains / services / endpoints / fingerprints / credentials and any asset [itself]. **Only assets are registered here; exploration conclusions/judgments don't go here — use record_fact.**
-- **Exploration conclusion/fact → record_fact (exploration graph, pass intent_id)**: use it for all of those. **Consolidate multiple observations into [ONE] fact** (summary = one summarizing sentence + detail = the expansion of the summary, based on the real execution process) — not one fact per attribute; one intent usually produces only one fact, and splitting finely bloats the graph endlessly — **write one fact by default, merging everything mergeable into detail**; only use the facts array to split when there are genuinely [mutually independent, unmergeable] conclusions — that's a rare exception, not the norm. **Write only the delta**: record only what is [newly obtained] this time; don't re-record existing facts in different words (if it merely corroborates an existing one with nothing new, don't record it). **Write only what you actually saw**: give evidence (one line: the command + the most proving one or two output lines — brief; details in detail), and mark confidence (observed = seen directly / inferred = inferred from phenomena). **Declare the source** of every fact: target_response (content the target itself returned: page bodies, headers, error messages, banners, even when a tool fetched it), tool_output (a tool's own result about the target: port states, scanner verdicts, status codes and timings you measured), third_party_intel (OSINT, CVE databases, public reports), operator_input (given by the human operator), or inference (your own reasoning; the default).
+- **Exploration conclusion/fact → record_fact (exploration graph, facts array)**: use it for all of those. **Consolidate multiple observations into [ONE] fact** (summary = one summarizing sentence + detail = the expansion of the summary, based on the real execution process) — not one fact per attribute; one intent usually produces only one fact, and splitting finely bloats the graph endlessly — **write one fact by default, merging everything mergeable into detail**; only use the facts array to split when there are genuinely [mutually independent, unmergeable] conclusions — that's a rare exception, not the norm. **Write only the delta**: record only what is [newly obtained] this time; don't re-record existing facts in different words (if it merely corroborates an existing one with nothing new, don't record it). **Write only what you actually saw**: give evidence (one line: the command + the most proving one or two output lines — brief; details in detail), and mark confidence (observed = seen directly / inferred = inferred from phenomena). **Declare the source** of every fact: target_response (content the target itself returned: page bodies, headers, error messages, banners, even when a tool fetched it), tool_output (a tool's own result about the target: port states, scanner verdicts, status codes and timings you measured), third_party_intel (OSINT, CVE databases, public reports), operator_input (given by the human operator), or inference (your own reasoning; the default).
+  Call record_fact with exactly {"facts":[{"summary":"...", "detail":"..."}]}; add other fact fields inside that item. Omit intent_id to link to this running intent, or set it inside the item when referring to another intent. Never put fact fields beside facts at the top level.
 - **Confirmed vulnerability → report_finding (exploration graph, with PoC, pass intent_id)**: **use it only when you actually triggered it this time and obtained reproducible evidence (request/response or command output)**. It is strictly forbidden to treat "version/fingerprint matching a CVE", "the parameter looks injectable", or "inference from external vulnerability databases/changelogs/code diffs" as confirmed, and don't substitute querying a CVE database or comparing patch versions for actually triggering it. Can't trigger it but suspicion remains → record an inferred fact with record_fact (the suspicion point + why it couldn't be triggered) for the planner; don't force it into a finding. Before registering, check list_findings / list_task_findings for an existing finding with the same root cause, endpoint, and parameter: the same defect again means extending that finding's evidence, not registering a duplicate (duplicates burn reviewer trust); a genuinely distinct entry point, parameter, or privilege level remains its own finding per the adversarial gate. When your confidence is not high, also fill report_finding's optional fields: counterevidence = what you tested that did not work; confidence_rationale = why the conclusion holds. Both are optional and never block reporting.
 
 
@@ -415,7 +416,7 @@ func intentAssetIDs(intent *db.Node) []int64 {
 }
 
 func renderIntentTask(intent *db.Node) string {
-	return fmt.Sprintf("\n\n[The intent you claimed (your only job this time: do just this one, produce only facts, stop when done)]:\n%s\nIntent id: %d (pass it when writing back record_fact / report_finding)", string(intent.Payload), intent.ID)
+	return fmt.Sprintf("\n\n[The intent you claimed (your only job this time: do just this one, produce only facts, stop when done)]:\n%s\nIntent id: %d (record_fact defaults to this intent; pass it for report_finding)", string(intent.Payload), intent.ID)
 }
 
 // renderWorkerGraphOverview folds the global situational snapshot into the worker's
@@ -479,6 +480,8 @@ func (w *Worker) ExecuteWithMessage(ctx context.Context, name string, taskID int
 }
 
 func (w *Worker) execute(ctx context.Context, name string, taskID int64, as *db.AssetStore, ts *db.ExplorationStore, intent *db.Node, hooks harness.HookRunner, emit func(db.Activity), enr EnrichTrigger, notifyFinding func(int64, string), requestID, message string) (harness.TerminalReason, WriteCounts, error) {
+	ctx, cancelRecordFactGuard := withRecordFactGuard(ctx)
+	defer cancelRecordFactGuard(nil)
 	tsx := NewToolSet(ts, name)
 	tsx.SetFindingRecorder(w.findingRecorder)
 	tsx.SetTaskID(taskID)
@@ -686,5 +689,8 @@ func (w *Worker) execute(ctx context.Context, name string, taskID int64, as *db.
 	// still settles (no external hard-timeout backstop needed). ctx itself carries only
 	// pause / planner kill / shutdown, which the engine distinguishes and re-queues/stops.
 	_, reason, err := captureRunSession(ctx, s, input, emitWrap)
+	if context.Cause(ctx) == AbortRepeatedRecordFactRefusal {
+		err = AbortRepeatedRecordFactRefusal
+	}
 	return reason, tsx.Writes(), err
 }

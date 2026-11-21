@@ -67,6 +67,8 @@ var (
 		"The backend process received SIGINT or SIGTERM and is restarting, updating, or shutting down. All running agents are cancelled; after restart, leftover running intents are reset to open and executed again")
 	AbortRunHardTimeout = cause("run_hard_timeout", "The per-run hard timeout backstop fired",
 		"A single run exceeded the soft wall-clock budget plus the extra grace, meaning a model request or a tool did not return for a long time, so normal turn-boundary wrap-up could not run. Focus on the last unreturned tool call before the interruption")
+	AbortRepeatedRecordFactRefusal = cause("record_fact_refusal_limit", "Repeated record_fact calls were refused",
+		"Three consecutive record_fact calls wrote no facts. This worker was stopped to prevent an unbounded retry loop; review its tool errors and correct the input or storage failure before resuming the intent")
 )
 
 // AbortReason resolves the named cause attached to a cancelled run context.

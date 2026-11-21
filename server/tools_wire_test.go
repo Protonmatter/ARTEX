@@ -30,7 +30,7 @@ func TestWireTools(t *testing.T) {
 	if err != nil {
 		db.SkipPGUnavailable(t, err)
 	}
-	defer pg.Close()
+	t.Cleanup(func() { _ = pg.Close() })
 
 	wireTools(pg, nil) // nil domainReg: test only covers filter/decoration, not injection
 	t.Cleanup(func() { agent.SetToolResolve(nil) })
@@ -70,13 +70,14 @@ func TestWireTools(t *testing.T) {
 		t.Error("planner should not get record_fact (not bound)")
 	}
 
-	// Edit description + add a default to a scalar param, then confirm the resolved
+	// Edit description + add a default to a fact item, then confirm the resolved
 	// worker tool reflects both. Restore from code default on cleanup.
 	t.Cleanup(func() { _ = pg.UpsertToolForce(rf.Key, rf.Description, rf.Schema, mustJSON(rf.Agents)) })
 	var schema map[string]any
 	_ = json.Unmarshal(rf.Schema, &schema)
 	if props, ok := schema["properties"].(map[string]any); ok {
-		if conf, ok := props["confidence"].(map[string]any); ok {
+		items := props["facts"].(map[string]any)["items"].(map[string]any)
+		if conf, ok := items["properties"].(map[string]any)["confidence"].(map[string]any); ok {
 			conf["default"] = "inferred"
 		}
 	}
@@ -93,11 +94,13 @@ func TestWireTools(t *testing.T) {
 	if got.Description() != "EDITED DESC" {
 		t.Errorf("description = %q, want EDITED DESC", got.Description())
 	}
-	// Default injection: omit confidence → handler input should carry the default.
-	// We can't run the real handler (nil store), but InputSchema must show the default.
+	// The catalog preserves item annotations without publishing top-level fact fields.
 	sc := got.InputSchema()
 	props := sc["properties"].(map[string]any)
-	conf := props["confidence"].(map[string]any)
+	if len(props) != 1 || props["facts"] == nil {
+		t.Fatalf("record_fact published obsolete top-level fields: %#v", props)
+	}
+	conf := props["facts"].(map[string]any)["items"].(map[string]any)["properties"].(map[string]any)["confidence"].(map[string]any)
 	if conf["default"] != "inferred" {
 		t.Errorf("confidence.default = %v, want inferred", conf["default"])
 	}

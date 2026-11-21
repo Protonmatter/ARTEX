@@ -79,6 +79,11 @@ Plan a short maintenance window for either rotation.
 
 ## 5. Diagnostics and local verification
 
+If a worker stops with `record_fact_refusal_limit`, inspect its last three
+`record_fact` tool results in the task activity view. Correct the fact input
+or underlying storage error before resuming the blocked intent; the guard
+stops further retries after three consecutive calls that wrote no facts.
+
 - `GET /api/health` — liveness, build version and provider health.
 - `GET /api/logs`, `GET /api/logs/stream` — live backend log sink; the UI shows it under
   **System → Logs**. The startup snapshot line is here too.

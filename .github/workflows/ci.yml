@@ -93,6 +93,10 @@ jobs:
           go-version-file: go.mod
       - name: fresh database scope and approval regressions
         run: go test -p 1 ./agent -run '^(TestAssociatedCompanyScopeAvailableToAgent|TestCaptureApprovalLifecycle)$' -count=1 -v
+      - name: fresh database fact write-back regressions
+        run: |
+          go test -p 1 ./agent -run '^(TestRecordFactDefaultsToRunningIntent|TestRecordFactRefusalGuardStopsMalformedCalls|TestWorkerStopsRepeatedRecordFactRefusals|TestWorkerWritesFactsOnlyContract)$' -count=1 -v
+          go test -p 1 ./server -run '^(TestRecordFactInputSchemaUpgrade|TestRecordFactSourceSchemaUpgrade|TestWireTools)$' -count=1 -v
       - name: interrupted stream metering race
         if: always()
         run: go test -race ./llmrec -run '^TestSideUsageRecordedOnceOnConsumerCancellation$' -count=20 -v
