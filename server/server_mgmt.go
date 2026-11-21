@@ -1807,14 +1807,15 @@ func skillRelPath(file string) (string, string) {
 		return "", "invalid path: '..' not allowed"
 	}
 	// 3. Reject leading slash and empty segments (double slash).
-	//    Leading slash would survive filepath.Clean as an absolute path.
+	//    Leading slash would survive path.Clean as an absolute path.
 	if strings.HasPrefix(file, "/") || strings.Contains(file, "//") {
 		return "", "invalid path: must be relative with no empty segments"
 	}
 	// 4. Normalize and final safety re-check after Clean.
-	//    filepath.Clean removes redundant separators and resolves single dots.
-	clean := filepath.Clean(file)
-	if clean == "." || filepath.IsAbs(clean) || strings.HasPrefix(clean, "..") {
+	//    API paths use forward slashes on every platform; file operations convert
+	//    them to native paths at the filesystem boundary.
+	clean := path.Clean(file)
+	if clean == "." || path.IsAbs(clean) || strings.HasPrefix(clean, "..") {
 		return "", "invalid path"
 	}
 	return clean, ""
@@ -1835,6 +1836,7 @@ func walkSkillFiles(root string) ([]string, error) {
 		if relErr != nil || rel == "." {
 			return nil
 		}
+		rel = filepath.ToSlash(rel)
 		if d.IsDir() {
 			entries = append(entries, rel+"/")
 		} else {

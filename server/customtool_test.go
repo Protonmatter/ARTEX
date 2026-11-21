@@ -84,11 +84,11 @@ func TestShellQuote(t *testing.T) {
 
 // TestExecPython runs a real Python script end-to-end: it must read params from
 // stdin JSON and the mirrored env var, then print — verifying the whole script
-// param-passing path. Skips if no python3.
+// param-passing path. Skips if no working Python 3 interpreter is available.
 func TestExecPython(t *testing.T) {
-	interp, err := exec.LookPath("python3")
-	if err != nil {
-		t.Skip("python3 unavailable")
+	interp := detectPython()
+	if interp == "" {
+		t.Skip("Python 3 unavailable")
 	}
 	code := `import json,sys,os
 a = json.load(sys.stdin)
@@ -173,11 +173,13 @@ func TestRunHTTPTool(t *testing.T) {
 }
 
 func TestDetectPython(t *testing.T) {
-	if _, err := exec.LookPath("python3"); err != nil {
-		t.Skip("python3 unavailable")
+	p := detectPython()
+	if p == "" {
+		t.Skip("Python 3 unavailable")
 	}
-	if p := detectPython(); p == "" {
-		t.Fatal("detectPython returned empty despite python3 on PATH")
+	out, err := exec.Command(p, "--version").CombinedOutput()
+	if err != nil || !strings.HasPrefix(strings.TrimSpace(string(out)), "Python 3.") {
+		t.Fatalf("detectPython selected an unusable interpreter %q: output=%q err=%v", p, out, err)
 	}
 }
 

@@ -55,6 +55,8 @@ Examples below use current naming; Git history retains the original release text
 ### Fixed
 
 - **Interrupted stream metering**: an LLM stream whose consumer stops before the terminal event records error status and its partial token usage once, even when the context was not cancelled.
+- **Windows skill paths**: skill file API paths and file listings keep forward slashes on Windows, matching the frontend and the archive format.
+- **Windows Python discovery**: custom script tools probe Python 3 candidates before selecting one, so a nonfunctional Microsoft Store alias does not hide an installed interpreter.
 - **Windows static builds**: `npm run build:static` now sets export mode from a Node launcher, so the same command works in PowerShell and POSIX shells without an extra dependency.
 - **Task creation account reset**: after a task is created, the form clears its test accounts along with its other fields. Editable account rows keep stable local identities when an earlier row is removed.
 - **System Settings mock status**: the demo returns a complete target-noise status, and the card rejects an incomplete response with an error instead of crashing the page.
