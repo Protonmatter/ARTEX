@@ -1,6 +1,6 @@
 module github.com/Protonmatter/ReconRivet
 
-go 1.26.10
+go 1.26.11
 
 require (
 	github.com/Autumn-27/norma v0.4.11

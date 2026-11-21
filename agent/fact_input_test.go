@@ -7,7 +7,29 @@ import (
 	"testing"
 
 	actool "github.com/Autumn-27/norma/tool"
+	"github.com/Protonmatter/ReconRivet/db"
 )
+
+func TestRecordFactDefaultsToRunningIntent(t *testing.T) {
+	store := guardTaskStore(t)
+	intentID := addGuardNode(t, store, db.KindIntent, map[string]any{"summary": "running intent"}, "running")
+	tools := NewToolSet(store, "worker")
+	tools.SetOwnerNode(intentID)
+	result := callGuardTool(t, tools.recordFact(), `{"facts":[{"summary":"observed service banner","confidence":"observed","source":"tool_output"}]}`)
+	if result.IsError {
+		t.Fatal(result.Flatten())
+	}
+	var out struct {
+		IDs []int64 `json:"ids"`
+	}
+	if err := json.Unmarshal([]byte(result.Flatten()), &out); err != nil || len(out.IDs) != 1 || out.IDs[0] <= 0 {
+		t.Fatalf("invalid fact result: %s; err=%v", result.Flatten(), err)
+	}
+	yielded, err := store.FactsYielded(intentID)
+	if err != nil || len(yielded) != 1 || yielded[0] != out.IDs[0] {
+		t.Fatalf("fact was not linked to running intent: ids=%v yielded=%v err=%v", out.IDs, yielded, err)
+	}
+}
 
 func TestRecordFactSummaryContract(t *testing.T) {
 	tools := NewToolSet(guardTaskStore(t), "worker")
@@ -55,32 +77,42 @@ func TestRecordFactStoredContractRepair(t *testing.T) {
 			"summary":      map[string]any{"type": "string", "description": "operator summary"},
 			"confidence":   map[string]any{"type": "string", "default": "inferred"},
 			"custom_field": map[string]any{"type": "string"},
-			"facts":        map[string]any{"type": "array", "items": map[string]any{"type": "object"}},
+			"facts": map[string]any{"type": "array", "items": map[string]any{
+				"type": "object", "properties": map[string]any{
+					"summary":    map[string]any{"type": "string", "description": "operator batch summary"},
+					"confidence": map[string]any{"type": "string", "default": "inferred"},
+				},
+			}},
 		},
 	}
 	base := NewToolSet(nil, "").recordFact()
 	repaired := DecorateTool(base, "operator tool", old)
 	schema := repaired.InputSchema()
-	if _, required := schema["required"]; required {
-		t.Fatal("batch still requires a top-level summary")
+	if required, ok := schema["required"].([]string); !ok || len(required) != 1 || required[0] != "facts" {
+		t.Fatalf("published contract must require facts: %#v", schema["required"])
 	}
 	if _, exists := schema["anyOf"]; exists {
 		t.Fatal("root anyOf reaches the provider")
 	}
 	props := schema["properties"].(map[string]any)
+	if len(props) != 1 || props["facts"] == nil {
+		t.Fatalf("published contract must contain facts only: %#v", props)
+	}
 	item := props["facts"].(map[string]any)["items"].(map[string]any)
 	required := item["required"].([]string)
 	if len(required) != 1 || required[0] != "summary" || props["facts"].(map[string]any)["minItems"] != 1 {
 		t.Fatal("batch must require a nonempty list with a summary per item")
 	}
-	if props["summary"].(map[string]any)["minLength"] != 1 ||
-		item["properties"].(map[string]any)["summary"].(map[string]any)["minLength"] != 1 {
+	if item["properties"].(map[string]any)["summary"].(map[string]any)["minLength"] != 1 {
 		t.Fatal("empty summaries permitted by schema")
 	}
 	if repaired.Description() != "operator tool" ||
-		props["summary"].(map[string]any)["description"] != "operator summary" ||
-		props["confidence"].(map[string]any)["default"] != "inferred" || props["custom_field"] != nil {
+		item["properties"].(map[string]any)["summary"].(map[string]any)["description"] != "operator batch summary" ||
+		item["properties"].(map[string]any)["confidence"].(map[string]any)["default"] != "inferred" || props["custom_field"] != nil {
 		t.Fatal("operator annotations lost")
+	}
+	if raw, ok := repaired.(interface{ AcceptsRawInput() bool }); !ok || !raw.AcceptsRawInput() {
+		t.Fatal("record_fact decorator must preserve handler-side input validation")
 	}
 	if _, ok := old["properties"].(map[string]any)["tested_asset_ids"]; ok {
 		t.Fatal("shared old schema mutated")
@@ -94,10 +126,13 @@ func TestRecordFactStoredContractRepair(t *testing.T) {
 	if err := json.Unmarshal(first, &roundTrip); err != nil {
 		t.Fatal(err)
 	}
-	for _, input := range []string{`{"summary":"single"}`, `{"facts":[{"summary":"batch"}]}`} {
+	for _, input := range []string{`{"facts":[{"summary":"batch"}]}`} {
 		if err := actool.ValidateInput(roundTrip, json.RawMessage(input)); err != nil {
 			t.Fatalf("SDK rejects valid %s after catalog round trip: %v", input, err)
 		}
+	}
+	if err := actool.ValidateInput(roundTrip, json.RawMessage(`{"summary":"single"}`)); err == nil {
+		t.Fatal("published schema accepted legacy single shape")
 	}
 }
 
@@ -140,7 +175,7 @@ func TestRecordFactStrictFields(t *testing.T) {
 }
 
 func TestRecordFactSchemaMatchesStrings(t *testing.T) {
-	props := recordFactSchema()["properties"].(map[string]any)
+	props := factItemSchema()["properties"].(map[string]any)
 	summary := regexp.MustCompile(props["summary"].(map[string]any)["pattern"].(string))
 	for _, value := range []string{"", " ", "\t\r\n", "\u00a0\u0085", "\u2003\u3000", "conclusion", "  observed  "} {
 		if got, want := summary.MatchString(value), strings.TrimSpace(value) != ""; got != want {
@@ -155,7 +190,7 @@ func TestRecordFactSchemaMatchesStrings(t *testing.T) {
 		}
 	}
 	for _, input := range []string{
-		`{"summary":"single","asset_ids":["1",2]}`,
+		`{"facts":[{"summary":"batch","asset_ids":["1",2]}]}`,
 		`{"facts":[{"summary":"batch","tested_asset_ids":["1",2]}]}`,
 	} {
 		if err := actool.ValidateInput(recordFactSchema(), json.RawMessage(input)); err != nil {

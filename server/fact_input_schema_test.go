@@ -44,8 +44,8 @@ func TestRecordFactInputSchemaUpgrade(t *testing.T) {
 	}
 	check := func(schema map[string]any) {
 		t.Helper()
-		if _, ok := schema["required"]; ok {
-			t.Fatal("top-level summary still required for batches")
+		if required, ok := schema["required"].([]any); !ok || len(required) != 1 || required[0] != "facts" {
+			t.Fatalf("facts-only contract not required: %#v", schema["required"])
 		}
 		if _, ok := schema["anyOf"]; ok {
 			t.Fatal("root anyOf still present")
@@ -56,12 +56,11 @@ func TestRecordFactInputSchemaUpgrade(t *testing.T) {
 		props := schema["properties"].(map[string]any)
 		items := props["facts"].(map[string]any)["items"].(map[string]any)
 		itemProps := items["properties"].(map[string]any)
-		if props["tested_asset_ids"] == nil || itemProps["tested_asset_ids"] == nil || itemProps["summary"] == nil {
-			t.Fatal("repaired schema missing alias or batch summary")
+		if len(props) != 1 || props["facts"] == nil || itemProps["tested_asset_ids"] == nil || itemProps["summary"] == nil {
+			t.Fatal("repaired schema must publish facts only with complete items")
 		}
-		if props["summary"].(map[string]any)["description"] != "operator summary" ||
-			props["confidence"].(map[string]any)["default"] != "inferred" || props["custom"] != nil {
-			t.Fatal("operator annotations lost")
+		if props["summary"] != nil || props["confidence"] != nil || props["custom"] != nil {
+			t.Fatal("obsolete top-level fact fields remain published")
 		}
 		if err := actool.ValidateInput(schema, json.RawMessage(`{"facts":[{"summary":"complete batch item"}]}`)); err != nil {
 			t.Fatal("valid batch rejected", err)
