@@ -56,10 +56,9 @@ type ParamRow = {
   parentKey?: string; // set when this is a sub-field of an array param's items
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function toRows(schema: Record<string, any>): ParamRow[] {
-  const props = (schema?.properties ?? {}) as Record<string, Record<string, unknown>>;
-  const required = new Set<string>((schema?.required as string[]) ?? []);
+function toRows(schema: Record<string, unknown>): ParamRow[] {
+  const props = (schema.properties ?? {}) as Record<string, Record<string, unknown>>;
+  const required = new Set<string>((schema.required as string[]) ?? []);
   const rows: ParamRow[] = [];
   for (const [name, p] of Object.entries(props)) {
     const type = String(p?.type ?? "");
@@ -73,10 +72,9 @@ function toRows(schema: Record<string, any>): ParamRow[] {
     });
     // Expand items.properties for array params so sub-fields are editable.
     if (type === "array") {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const itemProps = (p as any)?.items?.properties as Record<string, Record<string, unknown>> | undefined;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const itemRequired = new Set<string>(((p as any)?.items?.required as string[]) ?? []);
+      const items = p.items as { properties?: Record<string, Record<string, unknown>>; required?: string[] } | undefined;
+      const itemProps = items?.properties;
+      const itemRequired = new Set<string>(items?.required ?? []);
       if (itemProps) {
         for (const [subName, subP] of Object.entries(itemProps)) {
           const subType = String((subP as Record<string, unknown>)?.type ?? "");
@@ -110,15 +108,13 @@ function coerceDefault(type: string, raw: string): unknown {
 }
 
 // applyRows writes edited rows back into a deep-copied schema (structure untouched).
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function applyRows(schema: Record<string, any>, rows: ParamRow[]): Record<string, any> {
-  const next = structuredClone(schema ?? {});
+function applyRows(schema: Record<string, unknown>, rows: ParamRow[]): Record<string, unknown> {
+  const next = structuredClone(schema);
   const props = (next.properties ?? {}) as Record<string, Record<string, unknown>>;
   for (const r of rows) {
     if (r.parentKey) {
       // Sub-field of an array param's items.properties
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const parent = props[r.parentKey] as any;
+      const parent = props[r.parentKey] as { items?: { properties?: Record<string, Record<string, unknown>> } } | undefined;
       const subP = parent?.items?.properties?.[r.name] as Record<string, unknown> | undefined;
       if (!subP) continue;
       subP.description = r.description;
@@ -221,8 +217,9 @@ function ToolEditor({
             <Label className="text-muted-foreground text-xs">{t("Bind agents (controls which agents get this tool)")}</Label>
             <div className="flex flex-wrap gap-3">
               {agents.map((ag) => (
-                <label key={ag.key} className="flex items-center gap-2 text-sm">
+                <label key={ag.key} htmlFor={`tool-bind-${tool.key}-${ag.key}`} className="flex items-center gap-2 text-sm">
                   <Checkbox
+                    id={`tool-bind-${tool.key}-${ag.key}`}
                     checked={bound.includes(ag.key)}
                     disabled={trafficGated}
                     onCheckedChange={() => toggleAgent(ag.key)}
@@ -386,8 +383,12 @@ export default function ToolsPage() {
   }, []);
   React.useEffect(() => {
     reload();
-    api.agents().then(setAgents).catch(() => {});
-    api.settings().then((s) => setCaptureOn(!!s.traffic_capture)).catch(() => {});
+    api.agents().then(setAgents).catch(() => {
+      // Keep the current optional agent list on failure.
+    });
+    api.settings().then((s) => setCaptureOn(!!s.traffic_capture)).catch(() => {
+      // Keep the previous capture gate state on failure.
+    });
   }, [reload]);
 
   const [query, setQuery] = React.useState("");
@@ -648,11 +649,12 @@ function CustomToolDialog({
         return;
       }
     }
+    if (!isNew && !tool) return;
     setSaving(true);
     const payload = { description, schema: kind === "shell" ? {} : schema, agents: bound, enabled, kind, exec: buildExec(), deferred: kind === "shell" ? false : deferred };
     try {
       if (isNew) await api.createCustomTool({ key: key.trim(), ...payload });
-      else await api.updateCustomTool(tool!.key, payload);
+      else if (tool) await api.updateCustomTool(tool.key, payload);
       toast.success(isNew ? t("Custom tool created") : t("Saved"));
       onSaved();
     } catch (e) {
@@ -701,7 +703,7 @@ function CustomToolDialog({
         className="flex flex-col gap-0 p-0 data-[side=right]:w-[45vw] data-[side=right]:sm:max-w-[45vw] data-[side=right]:min-w-[480px]"
       >
         <SheetHeader className="px-4">
-          <SheetTitle>{isNew ? t("Create custom tool") : t("Edit {key}", { key: tool?.key ?? "" })}</SheetTitle>
+          <SheetTitle>{tool ? t("Edit {key}", { key: tool.key }) : t("Create custom tool")}</SheetTitle>
           <SheetDescription>
             {t(
               "shell = a bash environment declaration (name + description only, telling the model bash is available); command/script/http need an execution spec.",
@@ -777,8 +779,8 @@ function CustomToolDialog({
                   <Label className="text-xs">{t("Proxy URL (empty = direct)")}</Label>
                   <Input className="font-mono text-xs w-56" value={ex.proxy} onChange={(e) => setEx({ ...ex, proxy: e.target.value })} />
                 </div>
-                <label className="mt-4 flex items-center gap-2 text-sm">
-                  <Checkbox checked={ex.use_recording_proxy} onCheckedChange={(v) => setEx({ ...ex, use_recording_proxy: !!v })} />
+                <label htmlFor="custom-tool-recording-proxy" className="mt-4 flex items-center gap-2 text-sm">
+                  <Checkbox id="custom-tool-recording-proxy" checked={ex.use_recording_proxy} onCheckedChange={(v) => setEx({ ...ex, use_recording_proxy: !!v })} />
                   {t("Use recording proxy")}
                 </label>
               </div>
@@ -811,8 +813,8 @@ function CustomToolDialog({
             <Label className="text-muted-foreground text-xs">{t("Bind agents")}</Label>
             <div className="flex flex-wrap gap-3">
               {agents.map((a) => (
-                <label key={a.key} className="flex items-center gap-2 text-sm">
-                  <Checkbox checked={bound.includes(a.key)} onCheckedChange={() => toggleAgent(a.key)} />
+                <label key={a.key} htmlFor={`custom-tool-agent-${a.key}`} className="flex items-center gap-2 text-sm">
+                  <Checkbox id={`custom-tool-agent-${a.key}`} checked={bound.includes(a.key)} onCheckedChange={() => toggleAgent(a.key)} />
                   {a.name}<span className="text-muted-foreground font-mono text-xs">{a.key}</span>
                 </label>
               ))}
@@ -820,12 +822,12 @@ function CustomToolDialog({
           </div>
 
           <div className="flex items-center gap-6">
-            <label className="flex items-center gap-2 text-sm">
-              <Switch checked={enabled} onCheckedChange={setEnabled} /> {t("Enable")}
+            <label htmlFor="custom-tool-enabled" className="flex items-center gap-2 text-sm">
+              <Switch id="custom-tool-enabled" checked={enabled} onCheckedChange={setEnabled} /> {t("Enable")}
             </label>
             {kind !== "shell" && (
-              <label className="flex items-center gap-2 text-sm">
-                <Switch checked={deferred} onCheckedChange={setDeferred} /> {t("deferred (enable only for many rarely-used tools)")}
+              <label htmlFor="custom-tool-deferred" className="flex items-center gap-2 text-sm">
+                <Switch id="custom-tool-deferred" checked={deferred} onCheckedChange={setDeferred} /> {t("deferred (enable only for many rarely-used tools)")}
               </label>
             )}
           </div>

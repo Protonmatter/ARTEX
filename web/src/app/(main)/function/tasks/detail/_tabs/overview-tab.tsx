@@ -716,7 +716,7 @@ export function OverviewTab({ taskId }: { taskId: string }) {
         </CardContent>
       </Card>
       <TaskInterceptRulesCard taskId={taskId} />
-      {coverage && coverage.enabled && (coverage.scope_rows > 0 || (coverage.gaps?.length ?? 0) > 0) && (
+      {coverage?.enabled && (coverage.scope_rows > 0 || (coverage.gaps?.length ?? 0) > 0) && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
@@ -756,8 +756,8 @@ export function OverviewTab({ taskId }: { taskId: string }) {
               <div className="text-xs">
                 <span className="font-medium">{t("Coverage gaps: {count}", { count: coverage.gaps.length })}</span>
                 <ul className="text-muted-foreground mt-1 list-disc pl-4">
-                  {coverage.gaps.map((g, i) => (
-                    <li key={i}>
+                  {coverage.gaps.map((g) => (
+                    <li key={`${g.kind}:${g.surface}:${g.risk_area}`}>
                       {t(g.kind)} {g.surface ? g.surface + " " : ""}
                       {g.risk_area}
                     </li>
@@ -874,13 +874,18 @@ export function OverviewTab({ taskId }: { taskId: string }) {
               placeholder={
                 scopeKind === "company"
                   ? t("Company name or id")
-                  : scopeKind === "ip" || scopeKind === "cidr"
-                    ? t("e.g. 10.0.0.1 or 10.0.0.0/24")
-                    : scopeKind === "icp"
-                      ? t("e.g. Beijing ICP No.12345678-1")
-                      : scopeKind === "keyword"
-                        ? t("e.g. a company-name keyword")
-                        : t("e.g. example.com")
+                  : (() => {
+                    if (scopeKind === "ip" || scopeKind === "cidr") {
+                      return t("e.g. 10.0.0.1 or 10.0.0.0/24");
+                    }
+                    if (scopeKind === "icp") {
+                      return t("e.g. Beijing ICP No.12345678-1");
+                    }
+                    if (scopeKind === "keyword") {
+                      return t("e.g. a company-name keyword");
+                    }
+                    return t("e.g. example.com");
+                  })()
               }
               value={scopeValueInput}
               onChange={(e) => setScopeValueInput(e.target.value)}

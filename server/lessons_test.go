@@ -9,15 +9,15 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Autumn-27/artex/db"
+	"github.com/Protonmatter/ReconRivet/db"
 )
 
 func TestRSILessonsMode(t *testing.T) {
 	cases := map[string]string{"": "off", "off": "off", "shadow": "shadow", "INJECT": "inject", "nonsense": "off"}
 	for raw, want := range cases {
-		t.Setenv("ARTEX_RSI_LESSONS", raw)
+		t.Setenv("RECONRIVET_RSI_LESSONS", raw)
 		if got := rsiLessonsMode(); got != want {
-			t.Fatalf("ARTEX_RSI_LESSONS=%q -> %q, want %q", raw, got, want)
+			t.Fatalf("RECONRIVET_RSI_LESSONS=%q -> %q, want %q", raw, got, want)
 		}
 	}
 }

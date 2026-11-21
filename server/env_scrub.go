@@ -3,15 +3,15 @@ package server
 import "os"
 
 // secretEnv lists the credentials read from the environment only at startup:
-// ARTEX_PG_DSN and ARTEX_SECRET_KEY by NewManager, the API keys by agent.FromEnv inside New.
-// agent.FromEnv also reads ARTEX_LLM_PROXY and ARTEX_LLM_BASE_URL: both are URLs that
-// can carry credentials in their userinfo (http://user:pass@proxy:3128). The ARTEX_ARCHIVE_S3_*
+// RECONRIVET_PG_DSN and RECONRIVET_SECRET_KEY by NewManager, the API keys by agent.FromEnv inside New.
+// agent.FromEnv also reads RECONRIVET_LLM_PROXY and RECONRIVET_LLM_BASE_URL: both are URLs that
+// can carry credentials in their userinfo (http://user:pass@proxy:3128). The RECONRIVET_ARCHIVE_S3_*
 // keys are not read by the server, but the container may carry them and the agent's
 // shells would inherit them.
 var secretEnv = []string{
-	"ARTEX_PG_DSN", "ARTEX_SECRET_KEY", "ANTHROPIC_API_KEY", "OPENAI_API_KEY",
-	"ARTEX_LLM_PROXY", "ARTEX_LLM_BASE_URL",
-	"ARTEX_ARCHIVE_S3_ACCESS_KEY_ID", "ARTEX_ARCHIVE_S3_SECRET_ACCESS_KEY", "ARTEX_ARCHIVE_S3_SESSION_TOKEN",
+	"RECONRIVET_PG_DSN", "RECONRIVET_SECRET_KEY", "ANTHROPIC_API_KEY", "OPENAI_API_KEY",
+	"RECONRIVET_LLM_PROXY", "RECONRIVET_LLM_BASE_URL",
+	"RECONRIVET_ARCHIVE_S3_ACCESS_KEY_ID", "RECONRIVET_ARCHIVE_S3_SECRET_ACCESS_KEY", "RECONRIVET_ARCHIVE_S3_SESSION_TOKEN",
 }
 
 // ScrubSecretEnv removes secretEnv from the process environment once startup has
@@ -30,7 +30,7 @@ func ScrubSecretEnv() {
 
 // Option configures New. Options keep the test call sites unchanged: only the
 // binary opts into scrubbing, because tests create several servers in one
-// process and still need ARTEX_PG_DSN on later calls.
+// process and still need RECONRIVET_PG_DSN on later calls.
 type Option func(*Server)
 
 // WithSecretScrub makes New drop the startup secrets after reading them, before

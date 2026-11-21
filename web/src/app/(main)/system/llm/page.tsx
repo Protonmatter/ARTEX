@@ -36,7 +36,10 @@ import { setVisibleInterval } from "@/lib/polling";
 
 // Renders a translated string, turning <b>…</b> spans into bold elements, so a sentence with emphasis stays one key.
 function rich(s: string): React.ReactNode[] {
-  return s.split(/<b>(.*?)<\/b>/).map((part, i) => (i % 2 === 1 ? <b key={i}>{part}</b> : part));
+  return s.split(/<b>(.*?)<\/b>/).map((part, i) => (i % 2 === 1 ? <b key={
+    // biome-ignore lint/suspicious/noArrayIndexKey: translated markup fragments keep their source order and have no component state.
+    i
+  }>{part}</b> : part));
 }
 
 // The thinking switch (thinking.type) and the thinking effort (reasoning_effort) are two [independent] fields,
@@ -1006,7 +1009,6 @@ export default function LLMPage() {
             {profiles.map((p) => {
               const h = healthOf(p, health.get(p.id));
               return (
-                // biome-ignore lint/a11y/useSemanticElements: the card contains its own action buttons; a native <button> would nest buttons (invalid HTML)
                 <Card
                   key={p.id}
                   role="button"

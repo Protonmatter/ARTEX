@@ -1088,12 +1088,18 @@ export default function TrafficPage() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deleting
-                ? purging
-                  ? t("Purging…")
-                  : t("Deleting…")
-                : purging
-                  ? t("Confirm purge")
-                  : t("Confirm delete")}
+                ? (() => {
+                  if (purging) {
+                    return t("Purging…");
+                  }
+                  return t("Deleting…");
+                })()
+                : (() => {
+                  if (purging) {
+                    return t("Confirm purge");
+                  }
+                  return t("Confirm delete");
+                })()}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

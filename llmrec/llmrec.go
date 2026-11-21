@@ -6,14 +6,15 @@ package llmrec
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"iter"
 	"log"
 	"strings"
 	"time"
 
-	"github.com/Autumn-27/artex/db"
 	"github.com/Autumn-27/norma/llm"
 	"github.com/Autumn-27/norma/transcript"
+	"github.com/Protonmatter/ReconRivet/db"
 )
 
 type taskIDContextKey struct{}
@@ -184,6 +185,7 @@ func (r *Recorder) Stream(ctx context.Context, req llm.CompletionRequest) iter.S
 			usage       llm.Usage
 			stopReason  string
 			streamErr   error
+			stopSeen    bool
 		)
 
 		finished := false
@@ -203,7 +205,21 @@ func (r *Recorder) Stream(ctx context.Context, req llm.CompletionRequest) iter.S
 				r.record(req, session, taskID, worker, reqBody, capt, start, textBuf.String(), thinkingBuf.String(), usage, stopReason, err)
 			}
 		}
-		defer func() { finish(ctx.Err()) }()
+		defer func() {
+			if finished {
+				return
+			}
+			if err := ctx.Err(); err != nil {
+				finish(err)
+				return
+			}
+			if stopSeen {
+				reportStop(ctx, stopReason)
+				finish(nil)
+				return
+			}
+			finish(errors.New("stream consumer stopped before completion"))
+		}()
 
 		for ev, err := range r.inner.Stream(ctx, req) {
 			if err != nil {
@@ -236,6 +252,8 @@ func (r *Recorder) Stream(ctx context.Context, req llm.CompletionRequest) iter.S
 					stopReason = ev.StopReason
 				}
 				usage.MergeEcho(ev.Usage)
+			case llm.SEMessageStop:
+				stopSeen = true
 			}
 			if !yield(ev, err) {
 				return

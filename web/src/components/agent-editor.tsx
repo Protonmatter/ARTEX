@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { toast } from "sonner";
-import { EyeIcon, GitCompareIcon, InfoIcon, PencilIcon, RotateCcwIcon, SaveIcon, Trash2Icon, XIcon } from "lucide-react";
+import { EyeIcon, GitCompareIcon, PencilIcon, RotateCcwIcon, SaveIcon, Trash2Icon, XIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -31,7 +31,10 @@ import type { Agent, AgentDetail, AgentTrigger, MCPServer, PromptVar, PromptVers
 
 // Renders a translated string, turning <b>…</b> spans into bold elements, so a sentence with emphasis stays one key.
 function rich(s: string): React.ReactNode[] {
-  return s.split(/<b>(.*?)<\/b>/).map((part, i) => (i % 2 === 1 ? <b key={i}>{part}</b> : part));
+  return s.split(/<b>(.*?)<\/b>/).map((part, i) => (i % 2 === 1 ? <b key={
+    // biome-ignore lint/suspicious/noArrayIndexKey: translated markup fragments keep their source order and have no component state.
+    i
+  }>{part}</b> : part));
 }
 
 // Traffic tools are host tools gated by the global traffic capture switch: bindable, but
@@ -76,10 +79,18 @@ export function AgentEditor({ agentKey, onSaved }: { agentKey: string; onSaved?:
   const [settings, setSettings] = React.useState<Settings | null>(null);
 
   React.useEffect(() => {
-    api.mcpServers().then(setMcp).catch(() => {});
-    api.skills().then(setSkills).catch(() => {});
-    api.tools().then(setTools).catch(() => {});
-    api.settings().then(setSettings).catch(() => {});
+    api.mcpServers().then(setMcp).catch(() => {
+      // Keep the current optional MCP list on failure.
+    });
+    api.skills().then(setSkills).catch(() => {
+      // Keep the current optional skill list on failure.
+    });
+    api.tools().then(setTools).catch(() => {
+      // Keep the current optional tool list on failure.
+    });
+    api.settings().then(setSettings).catch(() => {
+      // Keep the current settings state on failure.
+    });
   }, []);
   // global gates: traffic tools need traffic capture, web search needs the master switch.
   const captureOn = !!settings?.traffic_capture;
@@ -226,7 +237,7 @@ export function AgentEditor({ agentKey, onSaved }: { agentKey: string; onSaved?:
   function toggleMcp(id: number) {
     const on = mcpVisible.includes(id);
     const name = mcp.find((m) => m.id === id)?.name ?? String(id);
-    applyVis(
+    void applyVis(
       on ? mcpVisible.filter((x) => x !== id) : [...mcpVisible, id],
       skillVisible,
       on ? t('Revoked MCP "{name}" visibility', { name }) : t('Granted MCP "{name}" visibility', { name }),
@@ -234,7 +245,7 @@ export function AgentEditor({ agentKey, onSaved }: { agentKey: string; onSaved?:
   }
   function toggleSkill(name: string) {
     const on = skillVisible.includes(name);
-    applyVis(
+    void applyVis(
       mcpVisible,
       on ? skillVisible.filter((x) => x !== name) : [...skillVisible, name],
       on ? t('Revoked Skill "{name}" visibility', { name }) : t('Granted Skill "{name}" visibility', { name }),
@@ -257,7 +268,9 @@ export function AgentEditor({ agentKey, onSaved }: { agentKey: string; onSaved?:
     } catch (e) {
       toast.error(t("Failed to save tool bindings: {error}", { error: (e as Error).message }));
       reload();
-      api.tools().then(setTools).catch(() => {});
+      api.tools().then(setTools).catch(() => {
+        // Keep the previous tool list if the retry also fails.
+      });
     }
   }
 
@@ -275,7 +288,6 @@ export function AgentEditor({ agentKey, onSaved }: { agentKey: string; onSaved?:
   // interactive shell (persistent PTY session tool family) is likewise open to all agents except goals; no global gate.
   const showInteractiveShell = agentKey !== "goals";
   // Every agent (including goals/mainagent) runs on some LLM, so the "default model" binding is open to all agents.
-  const showLLM = true;
   // triggers (P3) only attach to custom agents.
   const isCustom = !!detail && !detail.agent?.builtin;
 
@@ -293,9 +305,7 @@ export function AgentEditor({ agentKey, onSaved }: { agentKey: string; onSaved?:
       {/* config + prompt */}
       <TabsContent value="prompt" className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
         <div className="grid gap-4">
-          {(showLLM || showConfig || showWebSearch || showInteractiveShell) && (
             <div className="grid gap-3 rounded-md border p-3">
-              {showLLM && (
                 <div className="grid gap-1.5">
                   <Label htmlFor="llm-profile" className="text-xs">{t("Default model (LLM profile)")}</Label>
                   <div className="flex flex-wrap items-center gap-3">
@@ -321,7 +331,6 @@ export function AgentEditor({ agentKey, onSaved }: { agentKey: string; onSaved?:
                     </span>
                   </div>
                 </div>
-              )}
               <div className="flex flex-wrap items-end gap-3">
                 {showConfig && (
                   <>
@@ -377,7 +386,6 @@ export function AgentEditor({ agentKey, onSaved }: { agentKey: string; onSaved?:
                 </div>
               )}
             </div>
-          )}
 
           <div className="grid gap-2">
             <Label className="text-muted-foreground text-xs">
@@ -639,8 +647,8 @@ export function AgentEditor({ agentKey, onSaved }: { agentKey: string; onSaved?:
         <p className="text-muted-foreground mb-3 text-xs">{t("Check the MCP servers visible to this Agent.")}</p>
         <div className="grid gap-2">
           {mcp.map((m) => (
-            <label key={m.id} className="flex items-center gap-2 rounded-md border p-2 text-sm">
-              <Checkbox checked={mcpVisible.includes(m.id)} onCheckedChange={() => toggleMcp(m.id)} />
+            <label key={m.id} htmlFor={`agent-${agentKey}-mcp-${m.id}`} className="flex items-center gap-2 rounded-md border p-2 text-sm">
+              <Checkbox id={`agent-${agentKey}-mcp-${m.id}`} checked={mcpVisible.includes(m.id)} onCheckedChange={() => toggleMcp(m.id)} />
               {m.name}
               <span className="text-muted-foreground ml-auto text-xs">{m.transport}</span>
             </label>
@@ -654,8 +662,8 @@ export function AgentEditor({ agentKey, onSaved }: { agentKey: string; onSaved?:
         <p className="text-muted-foreground mb-3 text-xs">{t("Check the Skills visible to this Agent.")}</p>
         <div className="grid gap-2">
           {skills.map((s) => (
-            <label key={s.name} className="flex items-center gap-2 rounded-md border p-2 text-sm">
-              <Checkbox checked={skillVisible.includes(s.name)} onCheckedChange={() => toggleSkill(s.name)} />
+            <label key={s.name} htmlFor={`agent-${agentKey}-skill-${encodeURIComponent(s.name)}`} className="flex items-center gap-2 rounded-md border p-2 text-sm">
+              <Checkbox id={`agent-${agentKey}-skill-${encodeURIComponent(s.name)}`} checked={skillVisible.includes(s.name)} onCheckedChange={() => toggleSkill(s.name)} />
               <span className="font-mono text-xs">{s.name}</span>
               {s.description && <span className="text-muted-foreground ml-auto truncate text-xs">{s.description}</span>}
             </label>
@@ -674,12 +682,14 @@ export function AgentEditor({ agentKey, onSaved }: { agentKey: string; onSaved?:
             return (
               <label
                 key={tool.key}
+                htmlFor={`agent-${agentKey}-tool-${tool.key}`}
                 className={cn(
                   "flex items-center gap-2 rounded-md border p-2 text-sm",
                   gated && "opacity-60",
                 )}
               >
                 <Checkbox
+                  id={`agent-${agentKey}-tool-${tool.key}`}
                   checked={tool.agents.includes(agentKey)}
                   disabled={gated}
                   onCheckedChange={() => toggleTool(tool)}
@@ -755,7 +765,10 @@ function DiffView({ oldText, newText }: { oldText: string; newText: string }) {
     <pre className="max-h-[60vh] overflow-auto rounded-md border bg-muted/30 p-2 font-mono text-xs leading-5">
       {lines.map((l, idx) => (
         <div
-          key={idx}
+          key={
+            // biome-ignore lint/suspicious/noArrayIndexKey: diff lines are positional, display-only output with no child component state.
+            idx
+          }
           className={cn(
             "whitespace-pre-wrap px-1",
             l.type === "del" && "bg-red-500/15 text-red-700 dark:text-red-400",
@@ -763,7 +776,12 @@ function DiffView({ oldText, newText }: { oldText: string; newText: string }) {
             l.type === "same" && "text-muted-foreground",
           )}
         >
-          <span className="select-none mr-1 opacity-50">{l.type === "del" ? "-" : l.type === "add" ? "+" : " "}</span>
+          <span className="select-none mr-1 opacity-50">{l.type === "del" ? "-" : (() => {
+            if (l.type === "add") {
+              return "+";
+            }
+            return " ";
+          })()}</span>
           {l.text}
         </div>
       ))}
@@ -865,7 +883,7 @@ function AgentTriggersTab({ agentKey, agent }: { agentKey: string; agent?: Agent
     setTaskTimeoutMsg(trg.task_timeout_message);
     setToolCallMsg(trg.tool_call_message);
     setTaskCreateMsg(trg.task_create_message);
-    setToolNames(trg.tool_names ?? []);
+    setToolNames(trg.tool_names);
   }
 
   // submit creates or saves changes based on editingId; editing keeps the trigger's enabled state.
@@ -980,7 +998,7 @@ function AgentTriggersTab({ agentKey, agent }: { agentKey: string; agent?: Agent
               onValueChange={(v) => {
                 const rm = v as "serial" | "parallel";
                 setRunMode(rm);
-                saveBehavior({ trigger_run_mode: rm });
+                void saveBehavior({ trigger_run_mode: rm });
               }}
             >
               <SelectTrigger size="sm" className="h-8 w-40">
@@ -1001,7 +1019,7 @@ function AgentTriggersTab({ agentKey, agent }: { agentKey: string; agent?: Agent
               onValueChange={(v) => {
                 const mm = v as "by_task" | "all" | "none";
                 setMergeMode(mm);
-                saveBehavior({ trigger_merge_mode: mm });
+                void saveBehavior({ trigger_merge_mode: mm });
               }}
             >
               <SelectTrigger size="sm" className="h-8 w-44">
@@ -1028,7 +1046,7 @@ function AgentTriggersTab({ agentKey, agent }: { agentKey: string; agent?: Agent
                 onBlur={() => {
                   const n = Math.max(0, Math.floor(Number(maxParallel) || 0));
                   setMaxParallel(String(n));
-                  saveBehavior({ trigger_max_parallel: n });
+                  void saveBehavior({ trigger_max_parallel: n });
                 }}
               />
             </div>
@@ -1039,15 +1057,19 @@ function AgentTriggersTab({ agentKey, agent }: { agentKey: string; agent?: Agent
             ? t(
                 "Parallel: each trigger immediately starts its own concurrent session, no merging; triggers beyond the max concurrency queue for a free slot.",
               )
-            : mergeMode === "by_task"
-              ? t(
+            : (() => {
+              if (mergeMode === "by_task") {
+                return t(
                   "Serial · merge by task: one run at a time per agent; queued events for the same task merge into one conversation.",
-                )
-              : mergeMode === "all"
-                ? t(
-                    "Serial · merge all: one run at a time per agent; when dequeuing, all currently queued triggers merge into one conversation.",
-                  )
-                : t("Serial · no merge: one run at a time per agent; each trigger gets its own conversation.")}
+                );
+              }
+              if (mergeMode === "all") {
+                return t(
+                  "Serial · merge all: one run at a time per agent; when dequeuing, all currently queued triggers merge into one conversation.",
+                );
+              }
+              return t("Serial · no merge: one run at a time per agent; each trigger gets its own conversation.");
+            })()}
         </p>
       </div>
 
@@ -1061,8 +1083,8 @@ function AgentTriggersTab({ agentKey, agent }: { agentKey: string; agent?: Agent
 
         {/* schedule */}
         <div className="grid gap-1.5">
-          <label className="flex items-center gap-2 text-sm">
-            <Checkbox checked={onInterval} onCheckedChange={(v) => setOnInterval(!!v)} /> {t("Scheduled trigger")}
+            <label htmlFor={`agent-${agentKey}-trigger-interval`} className="flex items-center gap-2 text-sm">
+              <Checkbox id={`agent-${agentKey}-trigger-interval`} checked={onInterval} onCheckedChange={(v) => setOnInterval(!!v)} /> {t("Scheduled trigger")}
           </label>
           {onInterval && (
             <div className="grid gap-1.5">
@@ -1080,8 +1102,8 @@ function AgentTriggersTab({ agentKey, agent }: { agentKey: string; agent?: Agent
 
         {/* finding */}
         <div className="grid gap-1.5">
-          <label className="flex items-center gap-2 text-sm">
-            <Checkbox checked={onFinding} onCheckedChange={(v) => setOnFinding(!!v)} /> {t("Trigger on finding")}
+            <label htmlFor={`agent-${agentKey}-trigger-finding`} className="flex items-center gap-2 text-sm">
+              <Checkbox id={`agent-${agentKey}-trigger-finding`} checked={onFinding} onCheckedChange={(v) => setOnFinding(!!v)} /> {t("Trigger on finding")}
           </label>
           {onFinding && (
             <Textarea className="text-xs" rows={2} value={findingMsg}
@@ -1091,8 +1113,8 @@ function AgentTriggersTab({ agentKey, agent }: { agentKey: string; agent?: Agent
 
         {/* goal met */}
         <div className="grid gap-1.5">
-          <label className="flex items-center gap-2 text-sm">
-            <Checkbox checked={onGoalMet} onCheckedChange={(v) => setOnGoalMet(!!v)} /> {t("Trigger on goal met")}
+            <label htmlFor={`agent-${agentKey}-trigger-goal-met`} className="flex items-center gap-2 text-sm">
+              <Checkbox id={`agent-${agentKey}-trigger-goal-met`} checked={onGoalMet} onCheckedChange={(v) => setOnGoalMet(!!v)} /> {t("Trigger on goal met")}
           </label>
           {onGoalMet && (
             <Textarea className="text-xs" rows={2} value={goalMsg}
@@ -1102,8 +1124,8 @@ function AgentTriggersTab({ agentKey, agent }: { agentKey: string; agent?: Agent
 
         {/* task timeout */}
         <div className="grid gap-1.5">
-          <label className="flex items-center gap-2 text-sm">
-            <Checkbox checked={onTaskTimeout} onCheckedChange={(v) => setOnTaskTimeout(!!v)} /> {t("Trigger on task timeout")}
+            <label htmlFor={`agent-${agentKey}-trigger-task-timeout`} className="flex items-center gap-2 text-sm">
+              <Checkbox id={`agent-${agentKey}-trigger-task-timeout`} checked={onTaskTimeout} onCheckedChange={(v) => setOnTaskTimeout(!!v)} /> {t("Trigger on task timeout")}
           </label>
           {onTaskTimeout && (
             <Textarea className="text-xs" rows={2} value={taskTimeoutMsg}
@@ -1113,8 +1135,8 @@ function AgentTriggersTab({ agentKey, agent }: { agentKey: string; agent?: Agent
 
         {/* tool call */}
         <div className="grid gap-1.5">
-          <label className="flex items-center gap-2 text-sm">
-            <Checkbox checked={onToolCall} onCheckedChange={(v) => setOnToolCall(!!v)} /> {t("Trigger on tool call")}
+            <label htmlFor={`agent-${agentKey}-trigger-tool-call`} className="flex items-center gap-2 text-sm">
+              <Checkbox id={`agent-${agentKey}-trigger-tool-call`} checked={onToolCall} onCheckedChange={(v) => setOnToolCall(!!v)} /> {t("Trigger on tool call")}
           </label>
           {onToolCall && (
             <div className="grid gap-1.5">
@@ -1130,8 +1152,8 @@ function AgentTriggersTab({ agentKey, agent }: { agentKey: string; agent?: Agent
                 {tools.length === 0 && <span className="text-muted-foreground text-xs">{t("(tool list is empty)")}</span>}
                 <div className="grid gap-1">
                   {tools.map((tool) => (
-                    <label key={tool.key} className="flex items-start gap-2 text-xs">
-                      <Checkbox className="mt-0.5" checked={toolNames.includes(tool.key)}
+                    <label key={tool.key} htmlFor={`agent-${agentKey}-watched-tool-${tool.key}`} className="flex items-start gap-2 text-xs">
+                      <Checkbox id={`agent-${agentKey}-watched-tool-${tool.key}`} className="mt-0.5" checked={toolNames.includes(tool.key)}
                         onCheckedChange={() => toggleTool(tool.key)} />
                       <span className="min-w-0">
                         <span className="font-medium">{tool.key}</span>
@@ -1149,8 +1171,8 @@ function AgentTriggersTab({ agentKey, agent }: { agentKey: string; agent?: Agent
 
         {/* task created */}
         <div className="grid gap-1.5">
-          <label className="flex items-center gap-2 text-sm">
-            <Checkbox checked={onTaskCreate} onCheckedChange={(v) => setOnTaskCreate(!!v)} /> {t("Trigger on task created")}
+            <label htmlFor={`agent-${agentKey}-trigger-task-create`} className="flex items-center gap-2 text-sm">
+              <Checkbox id={`agent-${agentKey}-trigger-task-create`} checked={onTaskCreate} onCheckedChange={(v) => setOnTaskCreate(!!v)} /> {t("Trigger on task created")}
           </label>
           {onTaskCreate && (
             <Textarea className="text-xs" rows={2} value={taskCreateMsg}

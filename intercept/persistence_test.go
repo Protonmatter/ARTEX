@@ -3,7 +3,7 @@ package intercept
 import (
 	"testing"
 
-	"github.com/Autumn-27/artex/db"
+	"github.com/Protonmatter/ReconRivet/db"
 )
 
 const customToolApproval = `^(?:create_custom_tool|update_custom_tool)$`

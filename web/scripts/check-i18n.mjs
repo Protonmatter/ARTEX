@@ -40,7 +40,7 @@ function placeholders(s) {
 const missing = [];
 const mismatch = [];
 for (const [key, file] of calls) {
-  if (!Object.prototype.hasOwnProperty.call(dict, key)) {
+  if (!Object.hasOwn(dict, key)) {
     missing.push(`${file}: ${JSON.stringify(key)}`);
     continue;
   }

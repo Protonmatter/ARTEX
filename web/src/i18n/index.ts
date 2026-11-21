@@ -23,7 +23,7 @@ export const LOCALES: { code: Locale; label: string }[] = [
   { code: "en", label: "English" },
 ];
 
-const STORAGE_KEY = "artex.locale";
+const STORAGE_KEY = "reconrivet.locale";
 
 const DICTIONARIES: Record<Locale, Record<string, string>> = {
   tr: tr as Record<string, string>,
@@ -59,10 +59,10 @@ const dict = DICTIONARIES[locale];
 export type TVars = Record<string, string | number>;
 
 export function t(key: string, vars?: TVars): string {
-  const s = Object.prototype.hasOwnProperty.call(dict, key) ? dict[key] : key;
+  const s = Object.hasOwn(dict, key) ? dict[key] : key;
   if (!vars) return s;
   return s.replace(/\{(\w+)\}/g, (m, name: string) =>
-    Object.prototype.hasOwnProperty.call(vars, name) ? String(vars[name]) : m,
+    Object.hasOwn(vars, name) ? String(vars[name]) : m,
   );
 }
 

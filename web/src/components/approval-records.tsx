@@ -249,26 +249,31 @@ function ModelReviewContext({ input }: { input: InterceptReviewInput }) {
         text={JSON.stringify({ tool_name: input.tool_name, arguments: input.arguments }, null, 2)}
       />
       {input.version >= 2 ? (
-        input.background ? (
-          <div className="flex min-w-0 flex-col gap-2">
-            <CodeBlock
-              label={
-                input.background.source === "user_message"
-                  ? t("Background · user message")
-                  : t("Background · Worker intent summary (legacy)")
-              }
-              text={input.background.text}
-              truncated={input.background.truncated}
-            />
-            <p className="text-muted-foreground text-xs">
-              {input.background.source === "user_message"
-                ? t("Taken from the current user message.")
-                : t("This is the legacy Worker intent summary that used to be sent; the new Worker review no longer sends it.")}
-            </p>
-          </div>
-        ) : (
-          <p className="text-muted-foreground text-xs">{t("No background message was attached to this review.")}</p>
-        )
+        (() => {
+          if (input.background) {
+            return (
+              <div className="flex min-w-0 flex-col gap-2">
+                <CodeBlock
+                  label={
+                    input.background.source === "user_message"
+                      ? t("Background · user message")
+                      : t("Background · Worker intent summary (legacy)")
+                  }
+                  text={input.background.text}
+                  truncated={input.background.truncated}
+                />
+                <p className="text-muted-foreground text-xs">
+                  {input.background.source === "user_message"
+                    ? t("Taken from the current user message.")
+                    : t(
+                        "This is the legacy Worker intent summary that used to be sent; the new Worker review no longer sends it.",
+                      )}
+                </p>
+              </div>
+            );
+          }
+          return <p className="text-muted-foreground text-xs">{t("No background message was attached to this review.")}</p>;
+        })()
       ) : (
         <>
           {input.turn_input ? (

@@ -11,7 +11,7 @@ import { t } from "@/i18n";
 
 // Mock demo: no backend SSE, so stuff in a few sample log lines.
 const MOCK_LOGS: LogLine[] = [
-  { seq: 1, ts: "2026-11-14T03:55:00Z", level: "info", tag: "engine", text: "ARTEX v0.6.0 backend listening on :8787 (workers=3)" },
+  { seq: 1, ts: "2026-11-14T03:55:00Z", level: "info", tag: "engine", text: "ReconRivet v0.6.0 backend listening on :8787 (workers=3)" },
   { seq: 2, ts: "2026-11-14T03:55:01Z", level: "info", tag: "config", text: "LLM configured from DB: anthropic / claude-opus-4-8" },
   { seq: 3, ts: "2026-11-14T03:56:10Z", level: "info", tag: "planner", text: "task t-acme-web: planning round 3, generated intent i-4" },
   { seq: 4, ts: "2026-11-14T03:57:00Z", level: "warn", tag: "guard", text: "block bash: target out of bounds, out.evil.example is not in scope" },
@@ -32,7 +32,7 @@ const levelDot: Record<LogLine["level"], string> = {
 
 function fmtTime(ts: string) {
   const d = new Date(ts);
-  if (isNaN(d.getTime())) return "";
+  if (Number.isNaN(d.getTime())) return "";
   const p = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
 }
@@ -126,6 +126,7 @@ export default function LogsPage() {
     );
   }, [lines, q, level]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: filtered changing is the signal to keep the log view pinned to the bottom.
   React.useEffect(() => {
     if (stick.current && !paused) bottom.current?.scrollIntoView();
   }, [filtered, paused]);

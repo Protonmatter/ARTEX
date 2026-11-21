@@ -1,4 +1,4 @@
-// ARTEX domain model — types used across the UI.
+// ReconRivet domain model — types used across the UI.
 // Derived from the functional spec (section 7: key data shapes).
 
 export type TaskStatus = "created" | "queued" | "running" | "paused" | "done" | "failed" | "timeout";
@@ -1057,7 +1057,7 @@ export interface Settings {
   // Render limits of IM messages; 0 = no truncation. The backend answers 400 outside the bounds.
   notify_summary_max_runes?: number; // summary characters per finding, 0-4000, default 120
   notify_assets_max_shown?: number; // asset names listed per finding, 0-50, default 3
-  // Target noise profile; the stored setting wins over ARTEX_NOISE_PROFILE. Applies to the next request.
+  // Target noise profile; the stored setting wins over RECONRIVET_NOISE_PROFILE. Applies to the next request.
   noise_profile?: NoiseProfileName;
 }
 
@@ -1366,13 +1366,11 @@ export interface Tool {
   key: string;
   system: boolean;
   description: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  schema: Record<string, any>; // full JSON-Schema (object with properties)
+  schema: Record<string, unknown>; // full JSON-Schema (object with properties)
   agents: string[]; // bound agent keys
   enabled: boolean;
   kind?: "builtin" | "shell" | "command" | "script" | "http"; // custom tool kind
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  exec?: Record<string, any>; // custom tool execution spec (kind!=builtin)
+  exec?: Record<string, unknown>; // custom tool execution spec (kind!=builtin)
   deferred?: boolean; // schema deferred (SearchExtraTools/ExecuteExtraTool)
   calls?: number; // persistent runtime invocation count (older APIs may omit it)
 }
@@ -1474,8 +1472,7 @@ export interface InterceptPending {
   task_id?: string;
   agent_name: string;
   tool_name: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  tool_input: Record<string, any>;
+  tool_input: Record<string, unknown>;
   status: "pending" | "allowed" | "denied" | "timeout";
   reason: string; // the rule's message or the model's verdict reason (model verdicts carry a [model] prefix)
   decided_at?: string;

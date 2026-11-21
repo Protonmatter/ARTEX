@@ -130,7 +130,11 @@ function groupSteps(steps: Activity[], chat: boolean): Group[] {
   return out;
 }
 
-const kindLabel = (k: string) => (k === "thinking" ? t("Thinking") : k === "result" ? t("Summary") : t("Note"));
+function kindLabel(k: string): string {
+  if (k === "thinking") return t("Thinking");
+  if (k === "result") return t("Summary");
+  return t("Note");
+}
 
 function ActivityTime({ ts }: { ts: string }) {
   const date = new Date(ts);
@@ -174,9 +178,12 @@ function toolInputText(tool: string, raw: string): string {
       return JSON.parse('"' + m[1] + '"');
     } catch {
       // truncated mid-escape — unescape the common sequences best-effort.
-      return m[1].replace(/\\(["\\/nrt])/g, (_s, c) =>
-        c === "n" ? "\n" : c === "r" ? "\r" : c === "t" ? "\t" : c,
-      );
+      return m[1].replace(/\\(["\\/nrt])/g, (_s, c) => {
+        if (c === "n") return "\n";
+        if (c === "r") return "\r";
+        if (c === "t") return "\t";
+        return c;
+      });
     }
   }
   return raw;
@@ -282,40 +289,57 @@ function InterceptCard({
 
         {step.inherited ? (
           <Badge variant="outline">{t("History · Read-only")}</Badge>
-        ) : decided ? (
-          <span className={
-            "shrink-0 rounded px-2 py-0.5 text-[11px] font-medium " +
-            (decided === "allowed"
-              ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400"
-              : decided === "timeout"
-                ? "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400"
-                : "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400")
-          }>
-            {decided === "allowed" ? t("Allowed") : decided === "timeout" ? t("Timed out") : t("Denied")}
-          </span>
-        ) : (
-          <div className="flex shrink-0 gap-1.5">
-            <Button
-              size="sm"
-              className="h-6 px-2 text-xs"
-              disabled={deciding || !pendingId}
-              onClick={() => decide("allowed")}
-            >
-              <CheckIcon className="h-3 w-3" />
-              {t("Allow")}
-            </Button>
-            <Button
-              size="sm"
-              variant="destructive"
-              className="h-6 px-2 text-xs"
-              disabled={deciding || !pendingId}
-              onClick={() => decide("denied")}
-            >
-              <XIcon className="h-3 w-3" />
-              {t("Deny")}
-            </Button>
-          </div>
-        )}
+        ) : (() => {
+          if (decided) {
+            return (
+              <span
+                className={
+                  "shrink-0 rounded px-2 py-0.5 text-[11px] font-medium " +
+                  (decided === "allowed"
+                    ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400"
+                    : (() => {
+                        if (decided === "timeout") {
+                          return "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400";
+                        }
+                        return "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400";
+                      })())
+                }
+              >
+                {decided === "allowed"
+                  ? t("Allowed")
+                  : (() => {
+                      if (decided === "timeout") {
+                        return t("Timed out");
+                      }
+                      return t("Denied");
+                    })()}
+              </span>
+            );
+          }
+          return (
+            <div className="flex shrink-0 gap-1.5">
+              <Button
+                size="sm"
+                className="h-6 px-2 text-xs"
+                disabled={deciding || !pendingId}
+                onClick={() => decide("allowed")}
+              >
+                <CheckIcon className="h-3 w-3" />
+                {t("Allow")}
+              </Button>
+              <Button
+                size="sm"
+                variant="destructive"
+                className="h-6 px-2 text-xs"
+                disabled={deciding || !pendingId}
+                onClick={() => decide("denied")}
+              >
+                <XIcon className="h-3 w-3" />
+                {t("Deny")}
+              </Button>
+            </div>
+          );
+        })()}
       </div>
       {pendingId ? (
         <Collapsible open={expanded} onOpenChange={setExpanded} className="mt-2 min-w-0">
@@ -337,14 +361,19 @@ function InterceptCard({
                 defaultExpanded
                 onResolved={setDecided}
               />
-            ) : statusError ? (
-              <div className="flex flex-wrap items-center gap-2 p-3" role="alert">
-                <span>{statusError}</span>
-                <Button variant="outline" size="sm" onClick={() => setRetry((value) => value + 1)}>
-                  {t("Retry details")}
-                </Button>
-              </div>
-            ) : <p className="p-3 text-muted-foreground">{t("Loading approval details…")}</p>}
+            ) : (() => {
+              if (statusError) {
+                return (
+                  <div className="flex flex-wrap items-center gap-2 p-3" role="alert">
+                    <span>{statusError}</span>
+                    <Button variant="outline" size="sm" onClick={() => setRetry((value) => value + 1)}>
+                      {t("Retry details")}
+                    </Button>
+                  </div>
+                );
+              }
+              return <p className="p-3 text-muted-foreground">{t("Loading approval details…")}</p>;
+            })()}
           </CollapsibleContent>
         </Collapsible>
       ) : null}
@@ -379,16 +408,16 @@ function ToolBlock({
   const ToolIcon = toolName === "Bash" ? Terminal : Wrench;
   const running = !result;
   const ok = !!result && !result.is_error;
-  const statusTone = running
-    ? "text-muted-foreground"
-    : ok
-      ? "text-emerald-600 dark:text-emerald-400"
-      : "text-red-600 dark:text-red-400";
+  let statusTone = "text-red-600 dark:text-red-400";
+  if (running) statusTone = "text-muted-foreground";
+  else if (ok) statusTone = "text-emerald-600 dark:text-emerald-400";
   const rawCmd =
-    use && use.summary.startsWith(toolName) ? use.summary.slice(toolName.length).trimStart() : (use?.summary ?? "");
+    use?.summary.startsWith(toolName) ? use.summary.slice(toolName.length).trimStart() : (use?.summary ?? "");
   const cmd = toolInputText(toolName, rawCmd);
   // status only — the full result lives behind the expand ([Output]), not previewed inline
-  const statusText = running ? t("Running…") : ok ? "✓" : t("✕ Failed");
+  let statusText = t("✕ Failed");
+  if (running) statusText = t("Running…");
+  else if (ok) statusText = "✓";
 
   // key over the seqs we'd load; changes when the result (or command) arrives.
   const detailKey = `${use?.seq ?? ""}:${result?.seq ?? ""}`;
@@ -720,23 +749,29 @@ function ExecView({
             {g.label}
             <span className="h-px flex-1 bg-border" />
           </div>
-        ) : g.type === "user" ? (
-          <UserRow key={"u" + g.key} step={g.step} intent={g.intent} getDetail={getDetail} />
-        ) : g.type === "answer" ? (
-          <AnswerBlock key={"a" + g.key} step={g.step} getDetail={getDetail} />
-        ) : g.type === "tool" ? (
-          <ToolBlock
-            key={"t" + g.key}
-            group={g}
-            getDetail={getDetail}
-            showWorker={showWorker}
-            focused={focusedSeq != null && g.use?.seq === focusedSeq}
-          />
-        ) : g.type === "intercept" ? (
-          <InterceptCard key={"ic" + g.key} step={g.step} getDetail={getDetail} />
-        ) : (
-          <MessageBlock key={"m" + g.key} group={g} getDetail={getDetail} showWorker={showWorker} />
-        ),
+        ) : (() => {
+          if (g.type === "user") {
+            return <UserRow key={"u" + g.key} step={g.step} intent={g.intent} getDetail={getDetail} />;
+          }
+          if (g.type === "answer") {
+            return <AnswerBlock key={"a" + g.key} step={g.step} getDetail={getDetail} />;
+          }
+          if (g.type === "tool") {
+            return (
+              <ToolBlock
+                key={"t" + g.key}
+                group={g}
+                getDetail={getDetail}
+                showWorker={showWorker}
+                focused={focusedSeq != null && g.use?.seq === focusedSeq}
+              />
+            );
+          }
+          if (g.type === "intercept") {
+            return <InterceptCard key={"ic" + g.key} step={g.step} getDetail={getDetail} />;
+          }
+          return <MessageBlock key={"m" + g.key} group={g} getDetail={getDetail} showWorker={showWorker} />;
+        })(),
       )}
     </div>
   );

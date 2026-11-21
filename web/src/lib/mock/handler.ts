@@ -1,5 +1,5 @@
 // Mock routes: map (method, path) to the static data in lib/mock/data.
-// Unmatched routes always return safe defaults ([] / {} / {ok:true}) so no page ever crashes.
+// Unmatched routes use generic defaults; pages with structured response contracts need explicit fixtures.
 // Only entered via the http() short-circuit in api.ts when NEXT_PUBLIC_MOCK=1.
 
 import {
@@ -2247,6 +2247,7 @@ function route(m: string, path: string, seg: string[], q: URLSearchParams, b: Re
   if (path === "/traffic/hosts") return { hosts: D.trafficHosts };
   if (path === "/traffic") return D.traffic;
   if (path === "/traffic/exchange") return D.trafficDetail;
+  if (path === "/settings/noise" && m === "GET") return { profile: D.settings.noise_profile ?? "off", hosts: [] };
   if (path === "/settings" && m === "GET") return D.settings;
   if (path === "/settings" && m === "PUT") return { ...D.settings, ...b };
   if (path === "/settings/web-search/test") return { ok: true, count: 5, backend: D.settings.web_search_backend };
@@ -2464,7 +2465,12 @@ function route(m: string, path: string, seg: string[], q: URLSearchParams, b: Re
     if (decidedBy && !["human", "rule", "model", "system"].includes(decidedBy)) throw new Error("invalid decided_by");
     const filtered = mockInterceptHistory.filter((row) => {
       const source =
-        row.decision_source || (row.rule_id ? "rule" : row.reason?.startsWith("[model]") ? "model" : "unknown");
+        row.decision_source || (row.rule_id ? "rule" : (() => {
+          if (row.reason?.startsWith("[model]")) {
+            return "model";
+          }
+          return "unknown";
+        })());
       return (
         (seg[1] !== "task" || row.task_id === decodeURIComponent(seg[2])) &&
         (!status || row.status === status) &&

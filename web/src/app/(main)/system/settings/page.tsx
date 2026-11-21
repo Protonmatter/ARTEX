@@ -22,9 +22,15 @@ import { NoiseProfileCard } from "./noise-profile-card";
 function rich(s: string): React.ReactNode[] {
   return s.split(/(<b>.*?<\/b>|<code>.*?<\/code>)/).map((part, i) => {
     const b = /^<b>(.*)<\/b>$/.exec(part);
-    if (b) return <b key={i}>{b[1]}</b>;
+    if (b) return <b key={
+      // biome-ignore lint/suspicious/noArrayIndexKey: translated markup fragments keep their source order and have no component state.
+      i
+    }>{b[1]}</b>;
     const c = /^<code>(.*)<\/code>$/.exec(part);
-    if (c) return <code key={i}>{c[1]}</code>;
+    if (c) return <code key={
+      // biome-ignore lint/suspicious/noArrayIndexKey: translated markup fragments keep their source order and have no component state.
+      i
+    }>{c[1]}</code>;
     return part;
   });
 }
@@ -682,7 +688,7 @@ export default function SystemSettingsPage() {
                 <p className="text-muted-foreground text-xs leading-relaxed">
                   {rich(
                     t(
-                      "Queries leave this instance and go to api.keenable.ai. The request carries <b>X-Keenable-Title: ARTEX</b> so the provider can identify the caller. With no key, the public endpoint is rate-limited per IP; a key raises the limit, but the backend works without one.",
+                      "Queries leave this instance and go to api.keenable.ai. The request carries <b>X-Keenable-Title: ReconRivet</b> so the provider can identify the caller. With no key, the public endpoint is rate-limited per IP; a key raises the limit, but the backend works without one.",
                     ),
                   )}
                 </p>

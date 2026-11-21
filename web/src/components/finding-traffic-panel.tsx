@@ -125,15 +125,20 @@ export function FindingTrafficPanel({
           ) : null}
           {!data ? (
             <Skeleton className="h-28 w-full" />
-          ) : data.bindings.length === 0 ? (
-            <Empty>
-              <EmptyHeader>
-                <EmptyTitle>{t("No linked traffic")}</EmptyTitle>
-                <EmptyDescription>{t("Link baseline, vulnerability proof, and supplementary verification requests.")}</EmptyDescription>
-              </EmptyHeader>
-            </Empty>
-          ) : (
-            data.bindings.map((b, index) => (
+          ) : (() => {
+            if (data.bindings.length === 0) {
+              return (
+                <Empty>
+                  <EmptyHeader>
+                    <EmptyTitle>{t("No linked traffic")}</EmptyTitle>
+                    <EmptyDescription>
+                      {t("Link baseline, vulnerability proof, and supplementary verification requests.")}
+                    </EmptyDescription>
+                  </EmptyHeader>
+                </Empty>
+              );
+            }
+            return data.bindings.map((b, index) => (
               <div key={b.id} className="flex min-w-0 flex-col gap-2 rounded-md border p-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge variant="outline">
@@ -196,9 +201,7 @@ export function FindingTrafficPanel({
                           variant="ghost"
                           size="sm"
                           disabled={busy}
-                          onClick={() =>
-                            void mutate(() => api.removeFindingTraffic(findingId, b.id, data.version, contextTask))
-                          }
+                          onClick={() => void mutate(() => api.removeFindingTraffic(findingId, b.id, data.version, contextTask))}
                         >
                           {t("Unlink")}
                         </Button>
@@ -207,8 +210,8 @@ export function FindingTrafficPanel({
                   </div>
                 </div>
               </div>
-            ))
-          )}
+            ));
+          })()}
         </CardContent>
       </Card>
       {adding && data ? (

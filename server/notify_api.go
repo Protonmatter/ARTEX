@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Autumn-27/artex/db"
-	"github.com/Autumn-27/artex/notify"
+	"github.com/Protonmatter/ReconRivet/db"
+	"github.com/Protonmatter/ReconRivet/notify"
 )
 
 // This file is the HTTP API for the notification delivery feature. All routes are
@@ -475,8 +475,8 @@ func notifyTestMessage(baseURL string) notify.Message {
 			Name:      "Test message · channel configuration OK",
 			VulnClass: "Connectivity test",
 			Severity:  "low",
-			Summary:   "This is a test message for an ARTEX notification channel; receiving it means the channel is configured correctly.",
-			Assets:    []string{"artex.example.com"},
+			Summary:   "This is a test message for a ReconRivet notification channel; receiving it means the channel is configured correctly.",
+			Assets:    []string{"reconrivet.example.com"},
 			DetailURL: baseURL,
 		}},
 		HomeURL: baseURL,

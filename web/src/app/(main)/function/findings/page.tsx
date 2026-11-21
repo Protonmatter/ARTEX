@@ -75,7 +75,7 @@ import {
 import { setVisibleInterval } from "@/lib/polling";
 import { t } from "@/i18n";
 
-const FINDING_LIST_PREFERENCE_KEY = "artex_finding_list_preferences";
+const FINDING_LIST_PREFERENCE_KEY = "reconrivet_finding_list_preferences";
 
 // List views: flat = one big cross-task table (default); grouped = collapsible groups by task;
 // asset = left asset tree + the findings under that subtree on the right.
@@ -1267,9 +1267,12 @@ export default function FindingsPage() {
                           <CardTitle className="truncate text-sm">
                             {group.task_id === null
                               ? t("Unlinked / task deleted")
-                              : group.task_name
-                                ? t("{name} (task #{id})", { name: group.task_name, id: group.task_id })
-                                : t("Task #{id}", { id: group.task_id })}
+                              : (() => {
+                                if (group.task_name) {
+                                  return t("{name} (task #{id})", { name: group.task_name, id: group.task_id });
+                                }
+                                return t("Task #{id}", { id: group.task_id });
+                              })()}
                           </CardTitle>
                           <CardDescription className="truncate" title={group.task_description}>
                             {group.task_description || t("Source task unavailable")}

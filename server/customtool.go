@@ -18,13 +18,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Autumn-27/artex/db"
-	"github.com/Autumn-27/artex/egress"
-	"github.com/Autumn-27/artex/guard"
-	"github.com/Autumn-27/artex/intercept"
-	"github.com/Autumn-27/artex/notify"
 	"github.com/Autumn-27/norma/permission"
 	actool "github.com/Autumn-27/norma/tool"
+	"github.com/Protonmatter/ReconRivet/db"
+	"github.com/Protonmatter/ReconRivet/egress"
+	"github.com/Protonmatter/ReconRivet/guard"
+	"github.com/Protonmatter/ReconRivet/intercept"
+	"github.com/Protonmatter/ReconRivet/notify"
 )
 
 // This file implements the custom tool executor (docs/custom-tool-design.md). tools rows
@@ -214,11 +214,18 @@ func (s *Server) pgTestCustomTool(w http.ResponseWriter, r *http.Request) {
 
 const settingPythonInterp = "python_interpreter"
 
-// detectPython finds a python interpreter absolute path (python3 preferred).
+// detectPython finds a working Python 3 interpreter (python3 preferred).
+// On Windows, LookPath alone can select the Microsoft Store python3 alias,
+// which exists on PATH but cannot run scripts when Python is not installed.
 func detectPython() string {
 	for _, c := range []string{"python3", "python"} {
 		if p, err := exec.LookPath(c); err == nil {
-			return p
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			out, runErr := exec.CommandContext(ctx, p, "--version").CombinedOutput()
+			cancel()
+			if runErr == nil && strings.HasPrefix(strings.TrimSpace(string(out)), "Python 3.") {
+				return p
+			}
 		}
 	}
 	return ""

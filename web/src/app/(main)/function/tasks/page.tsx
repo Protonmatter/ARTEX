@@ -194,12 +194,9 @@ function fmtDuration(sec: number): string {
 function taskDuration(task: Task, nowSec: number): number {
   const start = task.created_unix ?? 0;
   if (!start) return 0;
-  const end =
-    task.status === "running"
-      ? nowSec
-      : task.completed_unix && task.completed_unix > 0
-        ? task.completed_unix
-        : (task.last_activity_unix ?? 0);
+  let end = task.last_activity_unix ?? 0;
+  if (task.completed_unix && task.completed_unix > 0) end = task.completed_unix;
+  if (task.status === "running") end = nowSec;
   return end > start ? end - start : 0;
 }
 
@@ -261,8 +258,8 @@ function taskControlAction(status: TaskStatus): "pause" | "resume" | null {
 type TaskSortField = "id" | "created" | "duration" | "status";
 
 const TASK_SORT_FIELDS: readonly TaskSortField[] = ["id", "created", "duration", "status"];
-const TASK_SORT_PREFERENCE_KEY = "artex_task_list_sort";
-const TASK_FILTER_PREFERENCE_KEY = "artex_task_list_filters";
+const TASK_SORT_PREFERENCE_KEY = "reconrivet_task_list_sort";
+const TASK_FILTER_PREFERENCE_KEY = "reconrivet_task_list_filters";
 
 const TASK_STATUS_RANK = new Map(STATUS_OPTIONS.map((option, index) => [option.value, index]));
 
@@ -562,9 +559,12 @@ export default function TasksPage() {
         toast.success(
           action === "pause"
             ? t("Task #{id} paused", { id })
-            : result.queued
-              ? t("Task #{id} resumed, queued", { id })
-              : t("Task #{id} resumed", { id }),
+            : (() => {
+              if (result.queued) {
+                return t("Task #{id} resumed, queued", { id });
+              }
+              return t("Task #{id} resumed", { id });
+            })(),
         );
       } catch (e) {
         toast.error(
@@ -751,9 +751,12 @@ export default function TasksPage() {
           toast.success(
             action === "pause"
               ? t("Paused {count} tasks", { count: succeeded.length })
-              : succeeded.some((item) => item.queued)
-                ? t("Resumed {count} tasks, some tasks were queued", { count: succeeded.length })
-                : t("Resumed {count} tasks", { count: succeeded.length }),
+              : (() => {
+                if (succeeded.some((item) => item.queued)) {
+                  return t("Resumed {count} tasks, some tasks were queued", { count: succeeded.length });
+                }
+                return t("Resumed {count} tasks", { count: succeeded.length });
+              })(),
           );
         }
         if (failed.length > 0) {
@@ -961,86 +964,91 @@ export default function TasksPage() {
               <div className="text-muted-foreground mx-4 flex items-center justify-center rounded-lg border border-dashed py-20 text-sm lg:mx-6">
                 {t("No tasks yet. Click \"New task\" at the top right to start.")}
               </div>
-            ) : filtered.length === 0 ? (
-              <div className="text-muted-foreground mx-4 flex items-center justify-center rounded-lg border border-dashed py-20 text-sm lg:mx-6">
-                {t("No matching tasks.")}
-              </div>
-            ) : (
-              <Table className="**:data-[slot='table-cell']:px-4 **:data-[slot='table-head']:px-4">
-                <TableHeader className="[&_tr]:border-t">
-                  <TableRow>
-                    <TableHead className="w-10">
-                      <Checkbox
-                        checked={headerChecked}
-                        onCheckedChange={(checked) => toggleSelectedPage(checked === true)}
-                        aria-label={t("Select all tasks on this page")}
+            ) : (() => {
+              if (filtered.length === 0) {
+                return (
+                  <div className="text-muted-foreground mx-4 flex items-center justify-center rounded-lg border border-dashed py-20 text-sm lg:mx-6">
+                    {t("No matching tasks.")}
+                  </div>
+                );
+              }
+              return (
+                <Table className="**:data-[slot='table-cell']:px-4 **:data-[slot='table-head']:px-4">
+                  <TableHeader className="[&_tr]:border-t">
+                    <TableRow>
+                      <TableHead className="w-10">
+                        <Checkbox
+                          checked={headerChecked}
+                          onCheckedChange={(checked) => toggleSelectedPage(checked === true)}
+                          aria-label={t("Select all tasks on this page")}
+                        />
+                      </TableHead>
+                      <SortableTaskHead
+                        field="id"
+                        label="ID"
+                        activeField={sortField}
+                        direction={sortDirection}
+                        className="font-mono"
+                        onSort={sortTasksBy}
                       />
-                    </TableHead>
-                    <SortableTaskHead
-                      field="id"
-                      label="ID"
-                      activeField={sortField}
-                      direction={sortDirection}
-                      className="font-mono"
-                      onSort={sortTasksBy}
-                    />
-                    <TableHead>{t("Name")}</TableHead>
-                    <TableHead>{t("Description")}</TableHead>
-                    <TableHead>{t("Goal")}</TableHead>
-                    <SortableTaskHead
-                      field="status"
-                      label={t("Status")}
-                      activeField={sortField}
-                      direction={sortDirection}
-                      onSort={sortTasksBy}
-                    />
-                    <TableHead className="text-center">{t("Goal progress")}</TableHead>
-                    <TableHead className="text-center" title={t("Critical / High / Medium / Low")}>
-                      {t("Findings")} <span className="text-muted-foreground font-normal">{t("C/H/M/L")}</span>
-                    </TableHead>
-                    <TableHead className="text-center">{t("Running workers")}</TableHead>
-                    <SortableTaskHead
-                      field="created"
-                      label={t("Created at")}
-                      activeField={sortField}
-                      direction={sortDirection}
-                      align="right"
-                      onSort={sortTasksBy}
-                    />
-                    <SortableTaskHead
-                      field="duration"
-                      label={t("Duration")}
-                      activeField={sortField}
-                      direction={sortDirection}
-                      align="right"
-                      onSort={sortTasksBy}
-                    />
-                    <TableHead className="text-right">{t("Token")}</TableHead>
-                    <TableHead className="sticky right-0 z-10 bg-card text-right shadow-[-1px_0_0_0_hsl(var(--border))]">
-                      {t("Actions")}
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {paginated.map((task) => (
-                    <TaskRow
-                      key={task.id}
-                      task={task}
-                      // only running tasks consume nowSec; other rows get 0 — with unchanged props, memo blocks the per-second tick's
-                      // whole-table re-render and only the running rows advance their duration.
-                      nowSec={task.status === "running" ? nowSec : 0}
-                      onDelete={deleteTask}
-                      onControl={controlTask}
-                      onRename={renameTask}
-                      onTogglePinned={toggleTaskPinned}
-                      onArchive={queueTaskArchive}
-                      selected={selectedIds.has(task.id)}
-                      onSelectedChange={toggleSelected}
-                    />
-                  ))}
-                </TableBody>
-              </Table>
-            )}
+                      <TableHead>{t("Name")}</TableHead>
+                      <TableHead>{t("Description")}</TableHead>
+                      <TableHead>{t("Goal")}</TableHead>
+                      <SortableTaskHead
+                        field="status"
+                        label={t("Status")}
+                        activeField={sortField}
+                        direction={sortDirection}
+                        onSort={sortTasksBy}
+                      />
+                      <TableHead className="text-center">{t("Goal progress")}</TableHead>
+                      <TableHead className="text-center" title={t("Critical / High / Medium / Low")}>
+                        {t("Findings")} <span className="text-muted-foreground font-normal">{t("C/H/M/L")}</span>
+                      </TableHead>
+                      <TableHead className="text-center">{t("Running workers")}</TableHead>
+                      <SortableTaskHead
+                        field="created"
+                        label={t("Created at")}
+                        activeField={sortField}
+                        direction={sortDirection}
+                        align="right"
+                        onSort={sortTasksBy}
+                      />
+                      <SortableTaskHead
+                        field="duration"
+                        label={t("Duration")}
+                        activeField={sortField}
+                        direction={sortDirection}
+                        align="right"
+                        onSort={sortTasksBy}
+                      />
+                      <TableHead className="text-right">{t("Token")}</TableHead>
+                      <TableHead className="sticky right-0 z-10 bg-card text-right shadow-[-1px_0_0_0_hsl(var(--border))]">
+                        {t("Actions")}
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {paginated.map((task) => (
+                      <TaskRow
+                        key={task.id}
+                        task={task}
+                        // only running tasks consume nowSec; other rows get 0 — with unchanged props, memo blocks the per-second tick's
+                        // whole-table re-render and only the running rows advance their duration.
+                        nowSec={task.status === "running" ? nowSec : 0}
+                        onDelete={deleteTask}
+                        onControl={controlTask}
+                        onRename={renameTask}
+                        onTogglePinned={toggleTaskPinned}
+                        onArchive={queueTaskArchive}
+                        selected={selectedIds.has(task.id)}
+                        onSelectedChange={toggleSelected}
+                      />
+                    ))}
+                  </TableBody>
+                </Table>
+              );
+            })()}
             <TablePagination
               page={page}
               pageSize={pageSize}
@@ -1925,145 +1933,156 @@ function TaskArchivesPanel({ onChanged }: { onChanged: () => void }) {
           <div className="flex justify-center py-20">
             <Spinner />
           </div>
-        ) : archives.length === 0 ? (
-          <Empty className="mx-4 border border-dashed lg:mx-6">
-            <EmptyHeader>
-              <EmptyTitle>{t("No task archives")}</EmptyTitle>
-              <EmptyDescription>{t("Paused or terminal tasks can be archived from the current task list.")}</EmptyDescription>
-            </EmptyHeader>
-          </Empty>
-        ) : (
-          <Table className="**:data-[slot='table-cell']:px-4 **:data-[slot='table-head']:px-4">
-            <TableHeader className="[&_tr]:border-t">
-              <TableRow>
-                <TableHead className="w-10">
-                  <Checkbox
-                    checked={selectedAll || (selectedSome ? "indeterminate" : false)}
-                    onCheckedChange={(checked) =>
-                      setSelected(checked === true ? new Set(selectable.map((archive) => archive.id)) : new Set())
-                    }
-                    aria-label={t("Select the archives on this page")}
-                  />
-                </TableHead>
-                <TableHead>{t("Task")}</TableHead>
-                <TableHead>{t("Original status")}</TableHead>
-                <TableHead>{t("Category")}</TableHead>
-                <TableHead>{t("Archived at")}</TableHead>
-                <TableHead>{t("Compressed size")}</TableHead>
-                <TableHead>{t("Data records")}</TableHead>
-                <TableHead className="min-w-44">{t("State")}</TableHead>
-                <TableHead className="text-right">{t("Actions")}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {archives.map((archive) => {
-                const processing = ARCHIVE_PROCESSING_STATES.has(archive.state);
-                const canRestore = archive.state === "ready" || archive.state === "restore_failed";
-                const canDelete = archive.state === "ready" || archive.state === "delete_failed";
-                return (
-                  <TableRow key={archive.id} data-state={selected.has(archive.id) ? "selected" : undefined}>
-                    <TableCell>
-                      <Checkbox
-                        checked={selected.has(archive.id)}
-                        disabled={processing}
-                        onCheckedChange={(checked) =>
-                          setSelected((current) => {
-                            const next = new Set(current);
-                            if (checked === true) next.add(archive.id);
-                            else next.delete(archive.id);
-                            return next;
-                          })
-                        }
-                        aria-label={t("Select task archive #{id}", { id: archive.task_id })}
-                      />
-                    </TableCell>
-                    <TableCell className="max-w-sm">
-                      <div className="flex min-w-0 flex-col gap-0.5">
-                        <span className="truncate font-medium">
-                          {archive.task_name || archive.task_description || t("Task #{id}", { id: archive.task_id })}
-                        </span>
-                        <span className="text-muted-foreground truncate text-xs">
-                          #{archive.task_id} · {archive.task_description}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <StatusBadge domain="task" value={archive.original_status} dot />
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">{archive.category_name || t("Uncategorized")}</TableCell>
-                    <TableCell className="text-muted-foreground whitespace-nowrap text-xs">
-                      {archiveDate(archive.archived_at || archive.requested_at)}
-                    </TableCell>
-                    <TableCell
-                      className="whitespace-nowrap text-xs"
-                      title={t("Before compression: {size}", { size: formatArchiveBytes(archive.original_size) })}
-                    >
-                      {archiveCompressionLabel(archive)}
-                    </TableCell>
-                    <TableCell className="text-xs tabular-nums">{archiveDataTotal(archive).toLocaleString(intlLocale)}</TableCell>
-                    <TableCell>
-                      <div className="flex min-w-0 flex-col gap-1.5">
-                        <ArchiveStateBadge state={archive.state} />
-                        {processing && <Progress value={archive.progress} />}
-                        {archive.error && (
-                          <p className="text-destructive text-xs [overflow-wrap:anywhere]">{archive.error}</p>
-                        )}
-                        {[...new Set(archive.warnings ?? [])].map((warning) => (
-                          <p
-                            key={warning}
-                            className="text-amber-700 text-xs [overflow-wrap:anywhere] dark:text-amber-400"
-                          >
-                            {warning}
-                          </p>
-                        ))}
-                        <span className="text-muted-foreground text-xs">
-                          {t(archive.phase)} · {archive.progress}%
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-0.5">
-                        {ARCHIVE_FAILED_STATES.has(archive.state) && (
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            onClick={() => void retry(archive)}
-                            aria-label={t("Retry archive operation")}
-                            title={t("Retry")}
-                          >
-                            <Undo2Icon />
-                          </Button>
-                        )}
-                        {canRestore && (
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            onClick={() => void restoreMany([archive])}
-                            aria-label={t("Restore task")}
-                            title={t("Restore task")}
-                          >
-                            <Undo2Icon />
-                          </Button>
-                        )}
-                        {canDelete && (
-                          <ArchiveDeleteDialog
-                            archives={[archive]}
-                            onConfirm={() => deleteMany([archive])}
-                            trigger={
-                              <Button size="icon" variant="ghost" aria-label={t("Permanently delete archive")} title={t("Permanently delete")}>
-                                <Trash2Icon />
-                              </Button>
-                            }
-                          />
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        )}
+        ) : (() => {
+          if (archives.length === 0) {
+            return (
+              <Empty className="mx-4 border border-dashed lg:mx-6">
+                <EmptyHeader>
+                  <EmptyTitle>{t("No task archives")}</EmptyTitle>
+                  <EmptyDescription>
+                    {t("Paused or terminal tasks can be archived from the current task list.")}
+                  </EmptyDescription>
+                </EmptyHeader>
+              </Empty>
+            );
+          }
+          return (
+            <Table className="**:data-[slot='table-cell']:px-4 **:data-[slot='table-head']:px-4">
+              <TableHeader className="[&_tr]:border-t">
+                <TableRow>
+                  <TableHead className="w-10">
+                    <Checkbox
+                      checked={selectedAll || (selectedSome ? "indeterminate" : false)}
+                      onCheckedChange={(checked) =>
+                        setSelected(checked === true ? new Set(selectable.map((archive) => archive.id)) : new Set())
+                      }
+                      aria-label={t("Select the archives on this page")}
+                    />
+                  </TableHead>
+                  <TableHead>{t("Task")}</TableHead>
+                  <TableHead>{t("Original status")}</TableHead>
+                  <TableHead>{t("Category")}</TableHead>
+                  <TableHead>{t("Archived at")}</TableHead>
+                  <TableHead>{t("Compressed size")}</TableHead>
+                  <TableHead>{t("Data records")}</TableHead>
+                  <TableHead className="min-w-44">{t("State")}</TableHead>
+                  <TableHead className="text-right">{t("Actions")}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {archives.map((archive) => {
+                  const processing = ARCHIVE_PROCESSING_STATES.has(archive.state);
+                  const canRestore = archive.state === "ready" || archive.state === "restore_failed";
+                  const canDelete = archive.state === "ready" || archive.state === "delete_failed";
+                  return (
+                    <TableRow key={archive.id} data-state={selected.has(archive.id) ? "selected" : undefined}>
+                      <TableCell>
+                        <Checkbox
+                          checked={selected.has(archive.id)}
+                          disabled={processing}
+                          onCheckedChange={(checked) =>
+                            setSelected((current) => {
+                              const next = new Set(current);
+                              if (checked === true) next.add(archive.id);
+                              else next.delete(archive.id);
+                              return next;
+                            })
+                          }
+                          aria-label={t("Select task archive #{id}", { id: archive.task_id })}
+                        />
+                      </TableCell>
+                      <TableCell className="max-w-sm">
+                        <div className="flex min-w-0 flex-col gap-0.5">
+                          <span className="truncate font-medium">
+                            {archive.task_name || archive.task_description || t("Task #{id}", { id: archive.task_id })}
+                          </span>
+                          <span className="text-muted-foreground truncate text-xs">
+                            #{archive.task_id} · {archive.task_description}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <StatusBadge domain="task" value={archive.original_status} dot />
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">{archive.category_name || t("Uncategorized")}</TableCell>
+                      <TableCell className="text-muted-foreground whitespace-nowrap text-xs">
+                        {archiveDate(archive.archived_at || archive.requested_at)}
+                      </TableCell>
+                      <TableCell
+                        className="whitespace-nowrap text-xs"
+                        title={t("Before compression: {size}", { size: formatArchiveBytes(archive.original_size) })}
+                      >
+                        {archiveCompressionLabel(archive)}
+                      </TableCell>
+                      <TableCell className="text-xs tabular-nums">
+                        {archiveDataTotal(archive).toLocaleString(intlLocale)}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex min-w-0 flex-col gap-1.5">
+                          <ArchiveStateBadge state={archive.state} />
+                          {processing && <Progress value={archive.progress} />}
+                          {archive.error && (
+                            <p className="text-destructive text-xs [overflow-wrap:anywhere]">{archive.error}</p>
+                          )}
+                          {[...new Set(archive.warnings ?? [])].map((warning) => (
+                            <p key={warning} className="text-amber-700 text-xs [overflow-wrap:anywhere] dark:text-amber-400">
+                              {warning}
+                            </p>
+                          ))}
+                          <span className="text-muted-foreground text-xs">
+                            {t(archive.phase)} · {archive.progress}%
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-0.5">
+                          {ARCHIVE_FAILED_STATES.has(archive.state) && (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => void retry(archive)}
+                              aria-label={t("Retry archive operation")}
+                              title={t("Retry")}
+                            >
+                              <Undo2Icon />
+                            </Button>
+                          )}
+                          {canRestore && (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => void restoreMany([archive])}
+                              aria-label={t("Restore task")}
+                              title={t("Restore task")}
+                            >
+                              <Undo2Icon />
+                            </Button>
+                          )}
+                          {canDelete && (
+                            <ArchiveDeleteDialog
+                              archives={[archive]}
+                              onConfirm={() => deleteMany([archive])}
+                              trigger={
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  aria-label={t("Permanently delete archive")}
+                                  title={t("Permanently delete")}
+                                >
+                                  <Trash2Icon />
+                                </Button>
+                              }
+                            />
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          );
+        })()}
         <TablePagination
           page={page}
           pageSize={pageSize}
@@ -2965,7 +2984,9 @@ function CategoryManagementSheet({
     void moveTask(task, destination.slice("category:".length));
   }
 
-  const saveLabel = saving ? t("Saving") : selectedView === "new" ? t("Create category") : t("Save changes");
+  let saveLabel = t("Save changes");
+  if (selectedView === "new") saveLabel = t("Create category");
+  if (saving) saveLabel = t("Saving");
 
   return (
     <>
@@ -3174,7 +3195,8 @@ function CreateTaskSheet({
   const [seedFirstIntent, setSeedFirstIntent] = React.useState(false); // dispatch a seed intent at creation so the worker starts without waiting for the first planner round; off by default, standard plan-then-execute
   const [coverageEnabled, setCoverageEnabled] = React.useState(true); // asset coverage feature; on by default. Off = no coverage computed/displayed, no scope accumulation, scope-related tools hidden (company links unaffected)
   const [interceptRules, setInterceptRules] = React.useState<AssetInterceptRuleInput[]>([]); // task-level asset intercept rules (this task only, never entering the global table)
-  const [credentials, setCredentials] = React.useState<TaskCredentialInput[]>([]); // test accounts declared at creation (#3); an empty password = the agent registers that account and records it
+  const [credentials, setCredentials] = React.useState<(TaskCredentialInput & { rowId: number })[]>([]); // local rowId keeps edits bound to the same account after removal
+  const nextCredentialRowId = React.useRef(0);
   // Method 1, file upload: files are staged under drafts/<draftId>/uploads/ before the task is created, and their absolute paths are appended to the description.
   const [uploading, setUploading] = React.useState(false);
   const [uploadCount, setUploadCount] = React.useState(0);
@@ -3264,6 +3286,7 @@ function CreateTaskSheet({
       setSeedFirstIntent(false);
       setCoverageEnabled(true);
       setInterceptRules([]);
+      setCredentials([]);
       setUploadCount(0);
       draftIdRef.current = "";
       setOpen(false);
@@ -3436,7 +3459,7 @@ function CreateTaskSheet({
               <FieldLabel htmlFor="task-credentials">{t("Test accounts (optional)")}</FieldLabel>
               <div className="grid gap-2">
                 {credentials.map((c, i) => (
-                  <div key={i} className="grid gap-2 sm:grid-cols-[1fr_1fr_1fr_auto]">
+                  <div key={c.rowId} className="grid gap-2 sm:grid-cols-[1fr_1fr_1fr_auto]">
                     <Input
                       placeholder={t("domain (e.g. target.example.com)")}
                       value={c.domain}
@@ -3474,7 +3497,10 @@ function CreateTaskSheet({
                   size="sm"
                   variant="outline"
                   className="w-fit"
-                  onClick={() => setCredentials((prev) => [...prev, { domain: "", username: "", password: "", note: "" }])}
+                  onClick={() => {
+                    const rowId = nextCredentialRowId.current++;
+                    setCredentials((prev) => [...prev, { rowId, domain: "", username: "", password: "", note: "" }]);
+                  }}
                 >
                   <PlusIcon className="size-4" /> {t("Add account")}
                 </Button>

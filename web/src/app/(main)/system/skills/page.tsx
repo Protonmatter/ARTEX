@@ -69,19 +69,21 @@ function buildTree(entries: string[]): TreeNode[] {
   const root: TreeNode[] = [];
   const dirMap = new Map<string, TreeNode>();
 
-  function ensureDir(dirPath: string, parentNodes: TreeNode[]): TreeNode[] {
-    if (dirMap.has(dirPath)) return dirMap.get(dirPath)!.children;
+  function ensureDir(dirPath: string): TreeNode[] {
+    const existing = dirMap.get(dirPath);
+    if (existing) return existing.children;
     const parts = dirPath.split("/");
     let nodes = root;
     let cur = "";
     for (const part of parts) {
       cur = cur ? `${cur}/${part}` : part;
-      if (!dirMap.has(cur)) {
-        const d: TreeNode = { name: part, path: cur, type: "dir", children: [] };
-        nodes.push(d);
-        dirMap.set(cur, d);
+      let dir = dirMap.get(cur);
+      if (!dir) {
+        dir = { name: part, path: cur, type: "dir", children: [] };
+        nodes.push(dir);
+        dirMap.set(cur, dir);
       }
-      nodes = dirMap.get(cur)!.children;
+      nodes = dir.children;
     }
     return nodes;
   }
@@ -89,7 +91,7 @@ function buildTree(entries: string[]): TreeNode[] {
   for (const entry of [...entries].sort()) {
     if (entry.endsWith("/")) {
       // Explicit directory entry — ensure the node exists (may already be created)
-      ensureDir(entry.slice(0, -1), root);
+      ensureDir(entry.slice(0, -1));
     } else {
       // File — ensure parent dirs exist, then push file node
       const parts = entry.split("/");
@@ -97,12 +99,13 @@ function buildTree(entries: string[]): TreeNode[] {
       let cur = "";
       for (let i = 0; i < parts.length - 1; i++) {
         cur = cur ? `${cur}/${parts[i]}` : parts[i];
-        if (!dirMap.has(cur)) {
-          const d: TreeNode = { name: parts[i], path: cur, type: "dir", children: [] };
-          nodes.push(d);
-          dirMap.set(cur, d);
+        let dir = dirMap.get(cur);
+        if (!dir) {
+          dir = { name: parts[i], path: cur, type: "dir", children: [] };
+          nodes.push(dir);
+          dirMap.set(cur, dir);
         }
-        nodes = dirMap.get(cur)!.children;
+        nodes = dir.children;
       }
       const fname = parts[parts.length - 1];
       if (fname) nodes.push({ name: fname, path: entry, type: "file", children: [] });
@@ -161,7 +164,7 @@ function SkillsOverview({
     const neverUsed = skills.filter((s) => s.calls === 0);
     const recent = skills
       .filter((s) => s.last_used)
-      .sort((a, b) => (a.last_used! < b.last_used! ? 1 : -1))
+      .sort((a, b) => (b.last_used ?? "").localeCompare(a.last_used ?? ""))
       .slice(0, 6);
     const missingCalls = missing.reduce((n, m) => n + m.calls, 0);
     return {
@@ -351,17 +354,27 @@ export default function SkillsPage() {
 
   // ── Data ──────────────────────────────────────────────────────────────────
   const load = React.useCallback(() => {
-    api.agents().then(setAgents).catch(() => {});
-    api.mcpServers().then(setMcpOptions).catch(() => {});
-    api.missingSkills().then(setMissing).catch(() => {});
+    api.agents().then(setAgents).catch(() => {
+      // Keep the current optional agent list on failure.
+    });
+    api.mcpServers().then(setMcpOptions).catch(() => {
+      // Keep the current optional MCP list on failure.
+    });
+    api.missingSkills().then(setMissing).catch(() => {
+      // Keep the current missing-skill list on failure.
+    });
     api.skills().then((ss) => {
       setSkills(ss);
-      ss.forEach((s) =>
-        api.skillVisibility(s.name)
+      ss.forEach((s) => {
+        void api.skillVisibility(s.name)
           .then((ids) => setVisibility((v) => ({ ...v, [s.name]: ids })))
-          .catch(() => {}),
-      );
-    }).catch(() => {});
+          .catch(() => {
+            // Visibility is optional metadata; keep the existing selection on failure.
+          });
+      });
+    }).catch(() => {
+      // Keep the current skill list when refresh fails.
+    });
   }, []);
 
   React.useEffect(() => { load(); }, [load]);
@@ -391,7 +404,7 @@ export default function SkillsPage() {
   function onUploadPick(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     e.target.value = ""; // reset so picking the same file again re-fires
-    if (f) uploadZip(f);
+    if (f) void uploadZip(f);
   }
 
   React.useEffect(() => {
@@ -642,17 +655,16 @@ export default function SkillsPage() {
         const open = expanded.has(key);
         return (
           <div key={node.path}>
-            <div
-              className="group relative flex cursor-pointer select-none items-center gap-1 rounded py-0.5 pr-1 text-sm hover:bg-muted"
-              style={{ paddingLeft: baseIndent }}
-              onClick={() => toggleExpanded(key)}
-            >
+            <div className="group relative flex items-center rounded hover:bg-muted">
+              <button type="button" aria-expanded={open} className="flex min-w-0 flex-1 cursor-pointer select-none items-center gap-1 py-0.5 pr-1 text-left text-sm"
+                style={{ paddingLeft: baseIndent }} onClick={() => toggleExpanded(key)}>
               <ChevronRightIcon className={cn("size-3.5 shrink-0 transition-transform", open && "rotate-90")} />
               {open
                 ? <FolderOpenIcon className="size-3.5 shrink-0 text-amber-500" />
                 : <FolderIcon className="size-3.5 shrink-0 text-amber-500" />
               }
               <span className="min-w-0 flex-1 truncate" title={node.path}>{node.name}</span>
+              </button>
               {/* Absolute so a long name can never push the actions out of view */}
               <span className="absolute inset-y-0 right-1 hidden items-center gap-0.5 rounded bg-muted pl-1 group-hover:flex">
                 <Button size="icon" variant="ghost" className="size-5" title={t("New file")}
@@ -686,14 +698,15 @@ export default function SkillsPage() {
         <div
           key={node.path}
           className={cn(
-            "group relative flex cursor-pointer select-none items-center gap-1 rounded py-0.5 pr-1 text-sm",
+            "group relative flex items-center rounded",
             isSelected ? "bg-accent text-accent-foreground" : "hover:bg-muted",
           )}
-          style={{ paddingLeft: baseIndent + 16 }}
-          onClick={() => setSelected({ skill, path: node.path })}
         >
+          <button type="button" aria-pressed={isSelected} className="flex min-w-0 flex-1 cursor-pointer select-none items-center gap-1 py-0.5 pr-1 text-left text-sm"
+            style={{ paddingLeft: baseIndent + 16 }} onClick={() => setSelected({ skill, path: node.path })}>
           <FileTextIcon className="size-3.5 shrink-0 text-muted-foreground" />
           <span className="min-w-0 flex-1 truncate font-mono text-xs" title={node.path}>{node.name}</span>
+          </button>
           <span className={cn(
             "absolute inset-y-0 right-1 hidden items-center rounded pl-1 group-hover:flex",
             isSelected ? "bg-accent" : "bg-muted",
@@ -787,14 +800,16 @@ export default function SkillsPage() {
                     {/* skill root node */}
                     <div
                       className={cn(
-                        "group relative flex cursor-pointer select-none items-center gap-1 rounded px-2 py-1 text-sm",
+                        "group relative flex items-center rounded",
                         isSkillSelected ? "bg-accent text-accent-foreground" : "hover:bg-muted",
                       )}
+                    >
+                      <button type="button" aria-expanded={isOpen} className="flex min-w-0 flex-1 cursor-pointer select-none items-center gap-1 px-2 py-1 text-left text-sm"
                       onClick={() => {
                         toggleExpanded(s.name);
                         setSelected({ skill: s.name, path: null });
                       }}
-                    >
+                      >
                       <ChevronRightIcon className={cn("size-3.5 shrink-0 transition-transform", isOpen && "rotate-90")} />
                       {isOpen
                         ? <FolderOpenIcon className="size-3.5 shrink-0 text-blue-500" />
@@ -809,6 +824,7 @@ export default function SkillsPage() {
                           {s.calls}
                         </span>
                       )}
+                      </button>
                       <span className={cn(
                         "absolute inset-y-0 right-1 hidden items-center gap-0.5 rounded pl-1 group-hover:flex",
                         isSkillSelected ? "bg-accent" : "bg-muted",
@@ -909,26 +925,41 @@ export default function SkillsPage() {
                   )}
                   {usageLoading ? (
                     <p className="text-xs text-muted-foreground">{t("Loading call details…")}</p>
-                  ) : usageCalls.length > 0 ? (
-                    <div className="rounded-md border">
-                      <div className="border-b px-2 py-1 text-xs text-muted-foreground">
-                        {t("Last {count} calls", { count: usageCalls.length })}
-                      </div>
-                      <div className="max-h-56 overflow-y-auto">
-                        {usageCalls.map((c, i) => (
-                          <div key={`${c.ts}-${i}`} className="flex items-center gap-2 border-b px-2 py-1 text-xs last:border-b-0">
-                            <span className="tabular-nums text-muted-foreground">{fmtTime(c.ts)}</span>
-                            <Badge variant="outline" className="font-normal">{c.agent_key || "—"}</Badge>
-                            <span className="ml-auto text-muted-foreground">
-                              {c.task_id > 0 ? t("Task #{id}", { id: c.task_id }) : c.session_id ? t("Chat session") : "—"}
-                            </span>
+                  ) : (() => {
+                    if (usageCalls.length > 0) {
+                      return (
+                        <div className="rounded-md border">
+                          <div className="border-b px-2 py-1 text-xs text-muted-foreground">
+                            {t("Last {count} calls", { count: usageCalls.length })}
                           </div>
-                        ))}
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="text-xs text-muted-foreground">{t("No call records yet.")}</p>
-                  )}
+                          <div className="max-h-56 overflow-y-auto">
+                            {usageCalls.map((c) => (
+                              <div
+                                key={`${c.ts}:${c.agent_key}:${c.task_id}:${c.session_id}`}
+                                className="flex items-center gap-2 border-b px-2 py-1 text-xs last:border-b-0"
+                              >
+                                <span className="tabular-nums text-muted-foreground">{fmtTime(c.ts)}</span>
+                                <Badge variant="outline" className="font-normal">
+                                  {c.agent_key || "—"}
+                                </Badge>
+                                <span className="ml-auto text-muted-foreground">
+                                  {c.task_id > 0
+                                    ? t("Task #{id}", { id: c.task_id })
+                                    : (() => {
+                                        if (c.session_id) {
+                                          return t("Chat session");
+                                        }
+                                        return "—";
+                                      })()}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    }
+                    return <p className="text-xs text-muted-foreground">{t("No call records yet.")}</p>;
+                  })()}
                 </div>
 
                 {/* ── left: linked MCP + visibility ── */}
@@ -943,8 +974,9 @@ export default function SkillsPage() {
                     ) : (
                       <div className="flex flex-wrap gap-x-4 gap-y-2">
                         {mcpOptions.map((m) => (
-                          <label key={m.id} className="flex cursor-pointer items-center gap-2 text-sm">
+                          <label key={m.id} htmlFor={`skill-detail-mcp-${m.id}`} className="flex cursor-pointer items-center gap-2 text-sm">
                             <Checkbox
+                              id={`skill-detail-mcp-${m.id}`}
                               checked={detailMcps.includes(m.name)}
                               onCheckedChange={(on) => toggleSkillMcp(selectedSkill.name, m.name, !!on)}
                             />
@@ -959,8 +991,9 @@ export default function SkillsPage() {
                     <Label className="text-xs text-muted-foreground">{t("Visibility (granted per agent)")}</Label>
                     <div className="space-y-2">
                       {agents.map((a) => (
-                        <label key={a.key} className="flex cursor-pointer items-center gap-2 text-sm">
+                        <label key={a.key} htmlFor={`skill-detail-agent-${a.id}`} className="flex cursor-pointer items-center gap-2 text-sm">
                           <Checkbox
+                            id={`skill-detail-agent-${a.id}`}
                             checked={(visibility[selectedSkill.name] ?? []).includes(a.id)}
                             onCheckedChange={() => toggleVisibility(selectedSkill.name, a.id, a.name)}
                           />
@@ -1013,9 +1046,12 @@ export default function SkillsPage() {
             <AlertDialogDescription>
               {pendingDelete?.kind === "skill"
                 ? t("This deletes all of the skill's files, MCP links and visibility config. This action cannot be undone.")
-                : pendingDelete?.kind === "dir"
-                  ? t("This also deletes all files under the folder. This action cannot be undone.")
-                  : t("This action cannot be undone.")}
+                : (() => {
+                  if (pendingDelete?.kind === "dir") {
+                    return t("This also deletes all files under the folder. This action cannot be undone.");
+                  }
+                  return t("This action cannot be undone.");
+                })()}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1102,8 +1138,9 @@ export default function SkillsPage() {
               ) : (
                 <div className="flex flex-col gap-2">
                   {mcpOptions.map((m) => (
-                    <label key={m.id} className="flex cursor-pointer items-center gap-2 text-sm">
+                    <label key={m.id} htmlFor={`skill-new-mcp-${m.id}`} className="flex cursor-pointer items-center gap-2 text-sm">
                       <Checkbox
+                        id={`skill-new-mcp-${m.id}`}
                         checked={newMcps.includes(m.name)}
                         onCheckedChange={(on) =>
                           setNewMcps((cur) => on ? [...cur, m.name] : cur.filter((n) => n !== m.name))
@@ -1124,8 +1161,9 @@ export default function SkillsPage() {
               ) : (
                 <div className="flex flex-col gap-2">
                   {agents.map((a) => (
-                    <label key={a.key} className="flex cursor-pointer items-center gap-2 text-sm">
+                    <label key={a.key} htmlFor={`skill-new-agent-${a.id}`} className="flex cursor-pointer items-center gap-2 text-sm">
                       <Checkbox
+                        id={`skill-new-agent-${a.id}`}
                         checked={newVisibility.includes(a.id)}
                         onCheckedChange={(on) =>
                           setNewVisibility((cur) => on ? [...cur, a.id] : cur.filter((id) => id !== a.id))

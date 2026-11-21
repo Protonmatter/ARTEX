@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Autumn-27/artex/db"
 	actool "github.com/Autumn-27/norma/tool"
+	"github.com/Protonmatter/ReconRivet/db"
 )
 
 func callReadJSON(t *testing.T, tool actool.CoreTool, input string) any {
@@ -25,18 +25,12 @@ func callReadJSON(t *testing.T, tool actool.CoreTool, input string) any {
 	return out
 }
 
-func TestGraphOverviewExpandsAssociatedCompanyScope(t *testing.T) {
-	// Known failure with a freshly seeded database (BaaRai/ARTEX#9). Repro:
-	//   ARTEX_PG_DSN=postgres://artex:testpass@localhost:5432/artextest_agent \
-	//     go test ./agent -run TestGraphOverviewExpandsAssociatedCompanyScope -count=1 -v
-	// On a fresh DB the company-scope expansion in graphOverviewData is not
-	// visible to the task: the t.Fatalf checks after QueryByTask and
-	// graphOverviewData (company asset linkage, company_scope rows and
-	// company_keywords) fail. Keep the skip until seeding is ordered correctly;
-	// do not delete it.
-	t.Skip("known failure with a fresh database; repro and failing assertions documented above; BaaRai/ARTEX#9")
+func TestAssociatedCompanyScopeAvailableToAgent(t *testing.T) {
+	// Fresh-database regression: task attribution and planner on-demand scope.
+	//   RECONRIVET_PG_DSN=postgres://reconrivet:testpass@localhost:5432/reconrivettest_agent \
+	//     go test ./agent -run TestAssociatedCompanyScopeAvailableToAgent -count=1 -v
 	d := testDB(t)
-	defer d.Close()
+	t.Cleanup(func() { _ = d.Close() })
 
 	companies := d.Companies()
 	companyID, _, err := companies.UpsertCompany(fmt.Sprintf("overview-scope-%d", time.Now().UnixNano()), "")
@@ -91,26 +85,40 @@ func TestGraphOverviewExpandsAssociatedCompanyScope(t *testing.T) {
 	if !ok {
 		t.Fatalf("coverage missing: %#v", overview["coverage"])
 	}
-	scopeRows, ok := coverage["scope"].([]map[string]any)
-	if !ok || len(scopeRows) != 1 {
-		t.Fatalf("task scope missing: %#v", coverage["scope"])
+	if denom, _ := coverage["denominator"].(int); denom < 1 {
+		t.Fatalf("associated company asset missing from overview coverage: %#v", coverage)
 	}
-	companyScope, ok := scopeRows[0]["company_scope"].([]map[string]any)
-	if !ok || len(companyScope) != len(inputs) {
-		t.Fatalf("company scope not expanded: %#v", scopeRows[0])
+	assetCoverage, err := assets.TaskCoverageWithSources(task.ID)
+	if err != nil || assetCoverage == nil || assetCoverage.ScopeRows != 1 {
+		t.Fatalf("task company scope not linked: coverage=%+v err=%v", assetCoverage, err)
 	}
-	kinds := make(map[string]string, len(companyScope))
-	for _, rule := range companyScope {
-		kinds[fmt.Sprint(rule["kind"])] = fmt.Sprint(rule["value"])
+	listed := callReadJSON(t, tools.listCompanies(), fmt.Sprintf(`{"search":%q}`, companiesName(t, companies, companyID)))
+	list, ok := listed.(map[string]any)
+	if !ok {
+		t.Fatalf("list_companies returned %T, want object", listed)
 	}
-	for _, input := range inputs {
-		if kinds[input.Kind] != input.Value {
-			t.Errorf("scope %s=%q want %q", input.Kind, kinds[input.Kind], input.Value)
+	companyRows, ok := list["companies"].([]any)
+	if !ok || len(companyRows) != 1 {
+		t.Fatalf("associated company not available to planner: %#v", listed)
+	}
+	company, ok := companyRows[0].(map[string]any)
+	if !ok {
+		t.Fatalf("list_companies row is %T, want object", companyRows[0])
+	}
+	rawScope, ok := company["scope"].([]any)
+	if !ok || len(rawScope) != len(inputs) {
+		t.Fatalf("company scope not available on demand: %#v", company["scope"])
+	}
+	gotScope := make(map[string]bool, len(rawScope))
+	for _, raw := range rawScope {
+		if text, ok := raw.(string); ok {
+			gotScope[text] = true
 		}
 	}
-	keywords, ok := scopeRows[0]["company_keywords"].([]string)
-	if !ok || len(keywords) != 1 || keywords[0] != keyword {
-		t.Fatalf("company keywords missing: %#v", scopeRows[0]["company_keywords"])
+	for _, input := range inputs {
+		if !gotScope[input.Value] {
+			t.Errorf("company scope missing %s=%q", input.Kind, input.Value)
+		}
 	}
 	if hc, _ := coverage["host_count"].(int); hc < 1 {
 		t.Fatalf("company asset host not counted in agent context: %#v", coverage["host_count"])

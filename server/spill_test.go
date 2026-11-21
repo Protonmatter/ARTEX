@@ -4,7 +4,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/Autumn-27/artex/agent"
+	"github.com/Protonmatter/ReconRivet/agent"
 )
 
 // Deleting a conversation removes the spill directory of its chat session only: the

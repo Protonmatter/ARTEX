@@ -43,7 +43,7 @@ export function TodoPopover({
 
   // refetch on each open — todos change as the run progresses.
   React.useEffect(() => {
-    if (open) load();
+    if (open) void load();
   }, [open, load]);
 
   const disabled = seq == null;
@@ -73,7 +73,10 @@ export function TodoPopover({
         <ul className="space-y-0.5">
           {(todos ?? []).map((todo, i) => (
             <li
-              key={`${i}:${todo.content}`}
+              key={
+                // biome-ignore lint/suspicious/noArrayIndexKey: todos have no server ID and these rows contain no local component state.
+                `${i}:${todo.content}`
+              }
               className={cn("flex gap-1.5 px-1 text-xs", todo.status === "completed" && "text-muted-foreground line-through")}
             >
               <span className="shrink-0">{MARK[todo.status] ?? "☐"}</span>

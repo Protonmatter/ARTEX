@@ -73,7 +73,7 @@ export function ChangePasswordDialog({
             <DialogTitle>{t("Change password")}</DialogTitle>
             <DialogDescription>
               {descBefore}
-              <b>ARTEX</b>
+              <b>ReconRivet</b>
               {descAfter}
             </DialogDescription>
           </DialogHeader>

@@ -1,4 +1,4 @@
-// Command artex runs the ARTEX backend: the dual PostgreSQL graph stores,
+// Command reconrivet runs the ReconRivet backend: the dual PostgreSQL graph stores,
 // the event-driven exploration engine, and the JSON HTTP API consumed by the
 // shadcn/ui frontend.
 package main
@@ -17,10 +17,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Autumn-27/artex/agent"
-	"github.com/Autumn-27/artex/config"
-	"github.com/Autumn-27/artex/egress"
-	"github.com/Autumn-27/artex/server"
+	"github.com/Protonmatter/ReconRivet/agent"
+	"github.com/Protonmatter/ReconRivet/config"
+	"github.com/Protonmatter/ReconRivet/egress"
+	"github.com/Protonmatter/ReconRivet/server"
 )
 
 // configSnapshot is the single startup log line describing the effective
@@ -58,13 +58,7 @@ func logConfigSnapshot(s configSnapshot) {
 // -ldflags "-X main.version=<tag>". Defaults to "dev" for local builds.
 var version = "dev"
 
-const banner = `
-    _    ____ _____ _______  __
-   / \  |  _ \_   _| ____\ \/ /
-  / _ \ | |_) || | |  _|  \  /
- / ___ \|  _ < | | | |___ /  \
-/_/   \_\_| \_\|_| |_____/_/\_\
-`
+const banner = "\n  ReconRivet\n"
 
 // printBanner writes the startup banner + version/runtime info to stdout.
 func printBanner(addr string) {
@@ -139,9 +133,9 @@ func run() int {
 	// JWT signing key directory (also holds secret.key, see server.NewManager).
 	keyDir := config.KeyDir()
 	// Proxies whose X-Forwarded-For the login rate limit reads; empty trusts none.
-	trusted, err := server.ParseTrustedProxies(os.Getenv("ARTEX_TRUSTED_PROXIES"))
+	trusted, err := server.ParseTrustedProxies(os.Getenv("RECONRIVET_TRUSTED_PROXIES"))
 	if err != nil {
-		log.Printf("[config] ARTEX_TRUSTED_PROXIES: %v", err)
+		log.Printf("[config] RECONRIVET_TRUSTED_PROXIES: %v", err)
 		return 1
 	}
 	trustedAddrs := make([]string, 0, len(trusted))
@@ -212,7 +206,7 @@ func run() int {
 	}
 
 	go func() {
-		log.Printf("ARTEX %s backend listening on %s (data=%s, workers=%d)", version, *addr, *dataDir, mgr.Workers())
+		log.Printf("ReconRivet %s backend listening on %s (data=%s, workers=%d)", version, *addr, *dataDir, mgr.Workers())
 		if err := httpSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("serve: %v", err)
 		}

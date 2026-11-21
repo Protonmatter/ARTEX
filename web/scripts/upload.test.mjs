@@ -21,6 +21,7 @@ function setup(mock = false) {
     require(name) {
       if (name === "@/lib/mock/enabled") return { MOCK: mock };
       if (name === "@/lib/mock/handler") return { mockHandle: () => assert.fail("unexpected mock request") };
+      if (name === "@/lib/auth") return { auth: { getToken: () => null, clearToken: () => assert.fail("unexpected logout") } };
       // English passthrough: assertions below match the source (English) messages.
       if (name === "@/i18n")
         return { t: (key, vars) => key.replace(/\{(\w+)\}/g, (m, k) => (vars && k in vars ? String(vars[k]) : m)) };

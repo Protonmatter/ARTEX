@@ -41,6 +41,18 @@ const profiles: { value: NoiseProfileName; label: string; limits: string }[] = [
   },
 ];
 
+export function isNoiseStatus(value: unknown): value is NoiseStatus {
+  if (typeof value !== "object" || value === null) return false;
+  const candidate = value as Record<string, unknown>;
+  if (!profiles.some((profile) => profile.value === candidate.profile) || !Array.isArray(candidate.hosts)) return false;
+  return candidate.hosts.every((host: unknown) => {
+    if (typeof host !== "object" || host === null) return false;
+    const row = host as Record<string, unknown>;
+    return typeof row.host === "string" &&
+      ["rpm", "peak_rpm", "inflight", "peak_inflight", "duplicates_avoided"].every((key) => typeof row[key] === "number");
+  });
+}
+
 // NoiseProfileCard sets the target noise profile and shows the per-host
 // counters of the current minute.
 export function NoiseProfileCard() {
@@ -52,7 +64,10 @@ export function NoiseProfileCard() {
     setLoading(true);
     api
       .noiseStatus()
-      .then(setStatus)
+      .then((next) => {
+        if (!isNoiseStatus(next)) throw new Error("noise status response is missing a valid profile or host list");
+        setStatus(next);
+      })
       .catch((e) => toast.error(t("Failed to load the noise counters: {error}", { error: (e as Error).message })))
       .finally(() => setLoading(false));
   }, []);
@@ -84,7 +99,7 @@ export function NoiseProfileCard() {
         </CardTitle>
         <CardDescription>
           {t(
-            "Paces the requests ARTEX itself sends to targets (WebFetch, http custom tools, the enrich probe) and sets the low-and-slow guidance in agent prompts. With traffic capture on, Bash commands that use the proxy (curl, wget, python-requests…) are paced too, by rate and jitter only: the in-flight, cache and retry limits apply to ARTEX's own requests. Raw scanners such as nmap, and commands that bypass the proxy, are not paced; this is best effort, not a security boundary. This setting takes precedence over ARTEX_NOISE_PROFILE and applies to the next request.",
+            "Paces the requests ReconRivet itself sends to targets (WebFetch, http custom tools, the enrich probe) and sets the low-and-slow guidance in agent prompts. With traffic capture on, Bash commands that use the proxy (curl, wget, python-requests…) are paced too, by rate and jitter only: the in-flight, cache and retry limits apply to ReconRivet's own requests. Raw scanners such as nmap, and commands that bypass the proxy, are not paced; this is best effort, not a security boundary. This setting takes precedence over RECONRIVET_NOISE_PROFILE and applies to the next request.",
           )}
         </CardDescription>
       </CardHeader>

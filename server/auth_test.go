@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
@@ -9,8 +10,16 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Autumn-27/artex/db"
+	"github.com/Protonmatter/ReconRivet/db"
 )
+
+func TestExtractTokenCookie(t *testing.T) {
+	r := httptest.NewRequest("GET", "/api/traffic", nil)
+	r.AddCookie(&http.Cookie{Name: "reconrivet_token", Value: "session"})
+	if got := extractToken(r); got != "session" {
+		t.Fatalf("extractToken()=%q, want session", got)
+	}
+}
 
 // jwtKeyDirs returns fresh key, data and legacy base dirs and points
 // jwtLegacyBaseDir at the latter for the duration of the test. keyDir does not

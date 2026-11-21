@@ -87,37 +87,50 @@ export function CredentialsTab({ taskId }: { taskId: string }) {
         {error ? <p className="text-destructive text-sm">{error}</p> : null}
         {items === null ? (
           <Skeleton className="h-24 w-full" />
-        ) : items.length === 0 ? (
-          <Empty>
-            <EmptyHeader>
-              <EmptyTitle>{t("No test accounts")}</EmptyTitle>
-              <EmptyDescription>
-                {t("Add one below, or declare them when creating the task — the agent reuses them for authenticated testing.")}
-              </EmptyDescription>
-            </EmptyHeader>
-          </Empty>
-        ) : (
-          <div className="flex flex-col divide-y">
-            {items.map((c) => (
-              <div key={c.id} className="flex flex-wrap items-center gap-2 py-2.5">
-                <code className="text-sm font-medium">{c.domain}</code>
-                <span className="text-muted-foreground text-sm">{c.username}</span>
-                <Badge variant={c.source === "agent" ? "secondary" : "outline"}>
-                  {c.source === "agent" ? t("agent-recorded") : t("declared")}
-                </Badge>
-                <div className="ml-auto flex items-center gap-1">
-                  <code className="max-w-40 truncate rounded bg-muted px-2 py-0.5 text-sm">
-                    {c.password === "" ? t("— agent generates —") : t("stored, hidden")}
-                  </code>
-                  <Button size="icon" variant="ghost" className="size-7" aria-label={t("Delete credential")} onClick={() => remove(c.id)}>
-                    <TrashIcon />
-                  </Button>
+        ) : (() => {
+          if (items.length === 0) {
+            return (
+              <Empty>
+                <EmptyHeader>
+                  <EmptyTitle>{t("No test accounts")}</EmptyTitle>
+                  <EmptyDescription>
+                    {t(
+                      "Add one below, or declare them when creating the task — the agent reuses them for authenticated testing.",
+                    )}
+                  </EmptyDescription>
+                </EmptyHeader>
+              </Empty>
+            );
+          }
+          return (
+            <div className="flex flex-col divide-y">
+              {items.map((c) => (
+                <div key={c.id} className="flex flex-wrap items-center gap-2 py-2.5">
+                  <code className="text-sm font-medium">{c.domain}</code>
+                  <span className="text-muted-foreground text-sm">{c.username}</span>
+                  <Badge variant={c.source === "agent" ? "secondary" : "outline"}>
+                    {c.source === "agent" ? t("agent-recorded") : t("declared")}
+                  </Badge>
+                  <div className="ml-auto flex items-center gap-1">
+                    <code className="max-w-40 truncate rounded bg-muted px-2 py-0.5 text-sm">
+                      {c.password === "" ? t("— agent generates —") : t("stored, hidden")}
+                    </code>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="size-7"
+                      aria-label={t("Delete credential")}
+                      onClick={() => remove(c.id)}
+                    >
+                      <TrashIcon />
+                    </Button>
+                  </div>
+                  {c.note ? <p className="text-muted-foreground w-full text-xs">{c.note}</p> : null}
                 </div>
-                {c.note ? <p className="text-muted-foreground w-full text-xs">{c.note}</p> : null}
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          );
+        })()}
         <div className="grid gap-2 sm:grid-cols-[1fr_1fr_1fr_auto]">
           <Input placeholder={t("domain (e.g. target.example.com)")} value={domain} onChange={(e) => setDomain(e.target.value)} />
           <Input placeholder={t("email or username")} value={username} onChange={(e) => setUsername(e.target.value)} />

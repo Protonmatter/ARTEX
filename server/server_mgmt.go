@@ -29,12 +29,12 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/Autumn-27/artex/agent"
-	"github.com/Autumn-27/artex/db"
-	"github.com/Autumn-27/artex/intercept"
-	"github.com/Autumn-27/artex/notify"
 	"github.com/Autumn-27/norma/llm"
 	"github.com/Autumn-27/norma/skill"
+	"github.com/Protonmatter/ReconRivet/agent"
+	"github.com/Protonmatter/ReconRivet/db"
+	"github.com/Protonmatter/ReconRivet/intercept"
+	"github.com/Protonmatter/ReconRivet/notify"
 )
 
 // validSkillName checks the agentskills.io name constraints, widened so a skill can
@@ -1807,14 +1807,15 @@ func skillRelPath(file string) (string, string) {
 		return "", "invalid path: '..' not allowed"
 	}
 	// 3. Reject leading slash and empty segments (double slash).
-	//    Leading slash would survive filepath.Clean as an absolute path.
+	//    Leading slash would survive path.Clean as an absolute path.
 	if strings.HasPrefix(file, "/") || strings.Contains(file, "//") {
 		return "", "invalid path: must be relative with no empty segments"
 	}
 	// 4. Normalize and final safety re-check after Clean.
-	//    filepath.Clean removes redundant separators and resolves single dots.
-	clean := filepath.Clean(file)
-	if clean == "." || filepath.IsAbs(clean) || strings.HasPrefix(clean, "..") {
+	//    API paths use forward slashes on every platform; file operations convert
+	//    them to native paths at the filesystem boundary.
+	clean := path.Clean(file)
+	if clean == "." || path.IsAbs(clean) || strings.HasPrefix(clean, "..") {
 		return "", "invalid path"
 	}
 	return clean, ""
@@ -1835,6 +1836,7 @@ func walkSkillFiles(root string) ([]string, error) {
 		if relErr != nil || rel == "." {
 			return nil
 		}
+		rel = filepath.ToSlash(rel)
 		if d.IsDir() {
 			entries = append(entries, rel+"/")
 		} else {
@@ -2318,7 +2320,7 @@ const maxModelRedirects = 5
 // host:port entries (for example "127.0.0.1:11434,host.docker.internal:11434")
 // that POST /api/llm/models may contact on loopback or private addresses.
 // Unset or empty enforces the strict public-only policy.
-const LLMPrivateEndpointsEnv = "ARTEX_LLM_PRIVATE_ENDPOINTS"
+const LLMPrivateEndpointsEnv = "RECONRIVET_LLM_PRIVATE_ENDPOINTS"
 
 type modelURLRefusalError struct {
 	msg string
@@ -2476,7 +2478,7 @@ func (g *modelURLGuard) blockDial(_, address string, _ syscall.RawConn) error {
 // validateURL validates a base_url candidate, proxy URL, or redirect target for
 // POST /api/llm/models. Only http and https URLs are permitted; hosts must
 // resolve strictly to public addresses unless their exact host:port is listed
-// in ARTEX_LLM_PRIVATE_ENDPOINTS. Errors never include resolved IP addresses.
+// in RECONRIVET_LLM_PRIVATE_ENDPOINTS. Errors never include resolved IP addresses.
 func (g *modelURLGuard) validateURL(ctx context.Context, rawURL, role string) (*url.URL, error) {
 	u, err := url.Parse(strings.TrimSpace(rawURL))
 	if err != nil {

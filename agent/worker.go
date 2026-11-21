@@ -11,15 +11,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Autumn-27/artex/db"
-	"github.com/Autumn-27/artex/egress"
-	"github.com/Autumn-27/artex/intercept"
 	"github.com/Autumn-27/norma/agentcore"
 	"github.com/Autumn-27/norma/harness"
 	"github.com/Autumn-27/norma/llm"
 	"github.com/Autumn-27/norma/permission"
 	actool "github.com/Autumn-27/norma/tool"
 	"github.com/Autumn-27/norma/transcript"
+	"github.com/Protonmatter/ReconRivet/db"
+	"github.com/Protonmatter/ReconRivet/egress"
+	"github.com/Protonmatter/ReconRivet/intercept"
 )
 
 // Worker is an LLM work agent (docs §4.4): it claims ONE intent, completes it
@@ -41,9 +41,8 @@ import (
 // messages API (the web_search_20250305 server tool), so each search consumes one
 // model call, and the search request is issued by DeepSeek's servers — it does NOT
 // go through the local Proxy, nor into the traffic recording.
-// KeenableSearchTitle is the X-Keenable-Title value ARTEX sends. Fixed in v1:
-// the title identifies the calling application to the provider.
-const KeenableSearchTitle = "ARTEX"
+// KeenableSearchTitle is the X-Keenable-Title value identifying ReconRivet to the provider.
+const KeenableSearchTitle = "ReconRivet"
 
 type WebSearchOpts struct {
 	Enabled     bool
@@ -108,7 +107,7 @@ func WorkerSessionID(explorationID, intentID int64) string {
 	return fmt.Sprintf("exp%d-worker-i%d", explorationID, intentID)
 }
 
-const workerChatMarkerPrefix = "<!-- ARTEX_WORKER_CHAT:"
+const workerChatMarkerPrefix = "<!-- RECONRIVET_WORKER_CHAT:"
 
 func workerChatMarker(requestID string) string {
 	return workerChatMarkerPrefix + requestID + " -->"
@@ -610,7 +609,7 @@ func (w *Worker) execute(ctx context.Context, name string, taskID int64, as *db.
 		NonStreaming:  w.nonStreaming(),                       // when this profile selects non-streaming, use Provider.Complete
 		MaxTokens:     w.maxTokens(),                          // 0 = send no cap; the server default decides
 
-		// On by default; ARTEX_UNTRUSTED_BOUNDARY=0 opts out: nonce-frame tool output as untrusted data.
+		// On by default; RECONRIVET_UNTRUSTED_BOUNDARY=0 opts out: nonce-frame tool output as untrusted data.
 		UntrustedOutputBoundary: untrustedBoundaryEnabled(),
 	}
 	if hooks != nil { // typed-nil guard: only set when concrete (avoids harness panic)

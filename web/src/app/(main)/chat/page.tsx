@@ -76,16 +76,6 @@ function fmtTokens(n: number): string {
   return String(n);
 }
 
-// fmtDuration renders an elapsed milliseconds span compactly (90s → 1m30s).
-function fmtDuration(ms: number): string {
-  const s = Math.floor(ms / 1000);
-  if (s < 60) return `${s}s`;
-  const m = Math.floor(s / 60);
-  if (m < 60) return `${m}m${String(s % 60).padStart(2, "0")}s`;
-  const h = Math.floor(m / 60);
-  return `${h}h${String(m % 60).padStart(2, "0")}m`;
-}
-
 // HISTORY_PAGE is how many steps one history page loads: the latest page on open,
 // then one more page each time the user scrolls to the top. Kept modest so a long
 // thread stays snappy (only ~a page of rows is in the DOM until you scroll up).
@@ -95,7 +85,7 @@ const CONVERSATION_LIST_PAGE = 100;
 // Which agent groups the user has collapsed in the left rail. Persisted so the
 // rail looks the same after a reload; unknown keys are harmless (a deleted agent
 // simply never renders a group again).
-const COLLAPSED_AGENTS_KEY = "artex.chat.collapsed-agents";
+const COLLAPSED_AGENTS_KEY = "reconrivet.chat.collapsed-agents";
 
 function conversationIsPinned(conversation: Conversation): boolean {
   return conversation.pinned ?? Boolean(conversation.pinned_at);
@@ -297,9 +287,12 @@ function LLMProfileRow({
   const current = selected != null ? profiles.find((p) => Number(p.id) === selected) : null;
   const label = current
     ? current.name
-    : activeDefault
-      ? t("Default ({name})", { name: activeDefault.name })
-      : t("Default");
+    : (() => {
+      if (activeDefault) {
+        return t("Default ({name})", { name: activeDefault.name });
+      }
+      return t("Default");
+    })();
 
   return (
     <div className="flex min-w-0 shrink-0 items-center gap-1 px-1 pt-0.5 pb-1">
@@ -623,7 +616,10 @@ function ChatView({
     hasMoreRef.current = page.hasMore;
     setHasMore(page.hasMore);
   }, []);
+  // biome-ignore lint/suspicious/noUnnecessaryConditions: approvalFocus.state is null when no approval URL parameter is present.
   const focusHistory = useApprovalHistory(approvalFocus.state?.source, historyLoaded, messages, loadFocusPage, mergeFocusPage);
+  // biome-ignore lint/suspicious/noUnnecessaryConditions: the focused approval can still be absent before URL lookup completes.
+  const focusedSeq = focusHistory.ready ? approvalFocus.state?.source?.seq : undefined;
 
   // ---- transcript auto-scroll (open → bottom; stick to bottom unless scrolled up) ----
   const contentRef = React.useRef<HTMLDivElement | null>(null);
@@ -663,6 +659,7 @@ function ChatView({
     const vp = viewport();
     if (!vp) return;
     const onScroll = () => {
+      // biome-ignore lint/suspicious/noUnnecessaryConditions: state is null until an approval URL is being resolved.
       if (approvalFocus.state && !focusHistory.ready) return;
       atBottomRef.current = vp.scrollTop + vp.clientHeight >= vp.scrollHeight - 60;
       if (vp.scrollTop <= 80) void loadEarlier(); // near top → pull an older page
@@ -682,6 +679,7 @@ function ChatView({
   // new activity → stick to bottom only if the user is already pinned there
   // biome-ignore lint/correctness/useExhaustiveDependencies: message and running changes intentionally retrigger bottom anchoring.
   React.useLayoutEffect(() => {
+    // biome-ignore lint/suspicious/noUnnecessaryConditions: state is null for ordinary chat navigation.
     if (approvalFocus.state || !atBottomRef.current) return;
     const vp = viewport();
     if (vp) vp.scrollTop = vp.scrollHeight;
@@ -817,7 +815,7 @@ function ChatView({
               {hasMore && (
                 <div className="text-muted-foreground/70 pb-2 text-center text-[11px]">{t("Scroll up to load earlier messages…")}</div>
               )}
-              <Transcript activity={messages} live={running} chat fetchDetail={fetchDetail} focusedSeq={focusHistory.ready ? approvalFocus.state?.source?.seq : undefined} />
+              <Transcript activity={messages} live={running} chat fetchDetail={fetchDetail} focusedSeq={focusedSeq} />
             </>
           )}
         </div>
@@ -1542,31 +1540,36 @@ export default function ChatPage() {
               onTitleMaybeChanged={reloadConvs}
               onConvUpdated={reloadConvs}
             />
-          ) : sourceRequested ? (
-            <div role="status" className="p-6 text-sm text-muted-foreground">
-              {convsLoaded ? t("The conversation has been deleted") : t("Loading the conversation…")}
-            </div>
-          ) : (
-            <DraftChat
-              agents={chatAgents}
-              profiles={profiles}
-              onStarted={(c, pending) => {
-                if (agentFilter !== null && agentFilter !== c.agent_key) changeAgentFilter(null);
-                // Insert the new conversation immediately so `selected` resolves to
-                // it on this render (switching to ChatView right away, before the
-                // async reloadConvs lands); reloadConvs then reconciles titles etc.
-                if (pending) setPendingByConv((p) => ({ ...p, [c.id]: pending }));
-                setConvs((prev) => {
-                  if (prev.some((item) => item.id === c.id)) return prev;
-                  const firstUnpinned = prev.findIndex((item) => !conversationIsPinned(item));
-                  const insertAt = firstUnpinned < 0 ? prev.length : firstUnpinned;
-                  return [...prev.slice(0, insertAt), c, ...prev.slice(insertAt)];
-                });
-                setSelectedId(c.id);
-                void reloadConvs();
-              }}
-            />
-          )}
+          ) : (() => {
+            if (sourceRequested) {
+              return (
+                <div role="status" className="p-6 text-sm text-muted-foreground">
+                  {convsLoaded ? t("The conversation has been deleted") : t("Loading the conversation…")}
+                </div>
+              );
+            }
+            return (
+              <DraftChat
+                agents={chatAgents}
+                profiles={profiles}
+                onStarted={(c, pending) => {
+                  if (agentFilter !== null && agentFilter !== c.agent_key) changeAgentFilter(null);
+                  // Insert the new conversation immediately so `selected` resolves to
+                  // it on this render (switching to ChatView right away, before the
+                  // async reloadConvs lands); reloadConvs then reconciles titles etc.
+                  if (pending) setPendingByConv((p) => ({ ...p, [c.id]: pending }));
+                  setConvs((prev) => {
+                    if (prev.some((item) => item.id === c.id)) return prev;
+                    const firstUnpinned = prev.findIndex((item) => !conversationIsPinned(item));
+                    const insertAt = firstUnpinned < 0 ? prev.length : firstUnpinned;
+                    return [...prev.slice(0, insertAt), c, ...prev.slice(insertAt)];
+                  });
+                  setSelectedId(c.id);
+                  void reloadConvs();
+                }}
+              />
+            );
+          })()}
         </div>
       </div>
       <AlertDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>

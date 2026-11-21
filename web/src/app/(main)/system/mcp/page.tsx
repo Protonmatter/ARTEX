@@ -61,19 +61,25 @@ export default function MCPPage() {
   const [refreshing, setRefreshing] = React.useState(false);
 
   const load = React.useCallback(() => {
-    api.agents().then(setAgents).catch(() => {});
+    api.agents().then(setAgents).catch(() => {
+      // Keep the current agent list when this optional refresh fails.
+    });
     api
       .mcpServers()
       .then((ss) => {
         setServers(ss);
-        ss.forEach((s) =>
-          api
+        ss.forEach((s) => {
+          void api
             .resourceVisibility("mcp", s.id)
             .then((ids) => setVisibility((v) => ({ ...v, [s.id]: ids })))
-            .catch(() => {}),
-        );
+            .catch(() => {
+              // Visibility is optional metadata; keep the existing selection on failure.
+            });
+        });
       })
-      .catch(() => {});
+      .catch(() => {
+        // Keep the current server list when this refresh fails.
+      });
   }, []);
   React.useEffect(() => {
     load();
@@ -116,7 +122,7 @@ export default function MCPPage() {
       name: s.name,
       transport: s.transport,
       command: s.command ?? "",
-      args: (s.args ?? []).join(" "),
+      args: s.args.join(" "),
       url: s.url ?? "",
       env: envToText(s.env),
       insecure: s.insecure ?? false,
@@ -124,7 +130,7 @@ export default function MCPPage() {
     });
     setTab("config");
     setOpen(true);
-    loadTools(s.id);
+    void loadTools(s.id);
   }
 
   async function loadTools(id: number) {
@@ -310,8 +316,9 @@ export default function MCPPage() {
               value={form.url}
               onChange={(e) => setF({ url: e.target.value })}
             />
-            <label className="flex items-center gap-2 text-sm">
+            <label htmlFor="mcp-insecure" className="flex items-center gap-2 text-sm">
               <Checkbox
+                id="mcp-insecure"
                 checked={form.insecure}
                 onCheckedChange={(v) => setF({ insecure: v === true })}
               />
@@ -359,22 +366,25 @@ export default function MCPPage() {
         </div>
         {toolsLoading ? (
           <p className="text-muted-foreground text-sm">{t("Loading…")}</p>
-        ) : tools.length === 0 ? (
-          <p className="text-muted-foreground text-sm">{t("No tools discovered yet; click refresh to fetch again.")}</p>
-        ) : (
-          <div className="flex flex-col divide-y">
-            {tools.map((tool) => (
-              <div key={tool.name} className="py-2.5">
-                <code className="font-mono text-sm">{tool.name}</code>
-                {tool.description && (
-                  <p className="text-muted-foreground mt-0.5 text-xs leading-relaxed">
-                    {tool.description}
-                  </p>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
+        ) : (() => {
+          if (tools.length === 0) {
+            return (
+              <p className="text-muted-foreground text-sm">{t("No tools discovered yet; click refresh to fetch again.")}</p>
+            );
+          }
+          return (
+            <div className="flex flex-col divide-y">
+              {tools.map((tool) => (
+                <div key={tool.name} className="py-2.5">
+                  <code className="font-mono text-sm">{tool.name}</code>
+                  {tool.description && (
+                    <p className="text-muted-foreground mt-0.5 text-xs leading-relaxed">{tool.description}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          );
+        })()}
       </div>
     );
   }
@@ -399,7 +409,10 @@ export default function MCPPage() {
         {servers.map((s) => (
           <Card
             key={s.id}
-            onClick={() => openEdit(s)}
+            onClick={(event) => {
+              if (event.target instanceof Element && event.target.closest("[data-card-control]")) return;
+              openEdit(s);
+            }}
             className="hover:border-primary/60 cursor-pointer gap-3 transition hover:shadow-sm"
           >
             <CardHeader>
@@ -413,16 +426,21 @@ export default function MCPPage() {
                   <Badge variant="destructive" className="max-w-55 truncate font-normal" title={s.last_connect_err ?? t("connect failed")}>
                     {t("down: {error}", { error: s.last_connect_err ? s.last_connect_err.slice(0, 60) : t("connect failed") })}
                   </Badge>
-                ) : s.last_connect_ok === true ? (
-                  <Badge variant="secondary" className="font-normal">
-                    {t("ok {time}", { time: s.last_connect_at ? new Date(s.last_connect_at).toLocaleTimeString(intlLocale) : "" })}
-                  </Badge>
-                ) : (
-                  <Badge variant="outline" className="text-muted-foreground font-normal">
-                    {t("not connected yet")}
-                  </Badge>
-                )}
-                <div className="ml-auto flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                ) : (() => {
+                  if (s.last_connect_ok === true) {
+                    return (
+                      <Badge variant="secondary" className="font-normal">
+                        {t("ok {time}", { time: s.last_connect_at ? new Date(s.last_connect_at).toLocaleTimeString(intlLocale) : "" })}
+                      </Badge>
+                    );
+                  }
+                  return (
+                    <Badge variant="outline" className="text-muted-foreground font-normal">
+                      {t("not connected yet")}
+                    </Badge>
+                  );
+                })()}
+                <div data-card-control className="ml-auto flex items-center gap-2">
                   <Switch
                     checked={s.enabled}
                     onCheckedChange={() => toggleEnabled(s)}
@@ -443,12 +461,13 @@ export default function MCPPage() {
               <p className="text-muted-foreground text-sm">
                 {s.tools && s.tools.length > 0 ? t("{count} tools", { count: s.tools.length }) : t("No tools discovered yet")}
               </p>
-              <div className="grid gap-2" onClick={(e) => e.stopPropagation()}>
+              <div data-card-control className="grid gap-2">
                 <span className="text-muted-foreground text-xs">{t("Visibility (granted per agent)")}</span>
                 <div className="flex flex-wrap gap-x-4 gap-y-2">
                   {agents.map((a) => (
-                    <label key={a.key} className="flex items-center gap-2 text-sm">
+                    <label key={a.key} htmlFor={`mcp-visible-${s.id}-${a.id}`} className="flex items-center gap-2 text-sm">
                       <Checkbox
+                        id={`mcp-visible-${s.id}-${a.id}`}
                         checked={(visibility[s.id] ?? []).includes(a.id)}
                         onCheckedChange={() => toggleVisibility(s.id, a.id, a.name)}
                       />
