@@ -79,3 +79,20 @@ func TestWorkerStopsRepeatedRecordFactRefusals(t *testing.T) {
 		t.Fatalf("worker made %d provider calls and wrote %+v, want %d calls and no facts", got, writes, maxConsecutiveRecordFactRefusals)
 	}
 }
+
+func TestWorkerWritesFactsOnlyContract(t *testing.T) {
+	store := guardTaskStore(t)
+	payload := map[string]any{"summary": "inspect a lab service"}
+	intentID := addGuardNode(t, store, db.KindIntent, payload, "running")
+	rawIntent, _ := json.Marshal(payload)
+	provider := toolCallThenStop("record_fact", `{"facts":[{"summary":"lab response observed","evidence":"HTTP 200 with expected marker","confidence":"observed","source":"tool_output"}]}`)
+	worker := NewWorker(provider, "fixture", t.TempDir(), nil, 0, 3)
+	_, writes, err := worker.Execute(t.Context(), "worker", 0, nil, store, &db.Node{ID: intentID, Payload: rawIntent}, nil, nil, nil, nil)
+	if err != nil || writes.Facts != 1 {
+		t.Fatalf("facts-only worker run: writes=%+v err=%v", writes, err)
+	}
+	yielded, err := store.FactsYielded(intentID)
+	if err != nil || len(yielded) != 1 {
+		t.Fatalf("worker fact missing from its intent: yielded=%v err=%v", yielded, err)
+	}
+}
