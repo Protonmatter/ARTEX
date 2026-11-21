@@ -3,7 +3,12 @@ package agent
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"sync/atomic"
 	"testing"
+
+	"github.com/Autumn-27/norma/llm"
+	"github.com/Protonmatter/ReconRivet/db"
 )
 
 func TestRecordFactRefusalGuardResetsOnWrite(t *testing.T) {
@@ -44,5 +49,33 @@ func TestRecordFactRefusalGuardStopsMalformedCalls(t *testing.T) {
 	}
 	if context.Cause(ctx) != AbortRepeatedRecordFactRefusal {
 		t.Fatalf("repeated malformed calls did not stop the worker: %v", context.Cause(ctx))
+	}
+}
+
+func TestWorkerStopsRepeatedRecordFactRefusals(t *testing.T) {
+	store := guardTaskStore(t)
+	payload := map[string]any{"summary": "inspect a lab service"}
+	intentID := addGuardNode(t, store, db.KindIntent, payload, "running")
+	rawIntent, _ := json.Marshal(payload)
+	var calls atomic.Int64
+	provider := captureUsageProvider{stream: func(_ context.Context, yield func(llm.StreamEvent, error) bool) {
+		callID := fmt.Sprintf("fact-%d", calls.Add(1))
+		for _, event := range []llm.StreamEvent{
+			{Type: llm.SEToolUseStart, ToolID: callID, ToolName: "record_fact"},
+			{Type: llm.SEToolInputJSON, Text: `{"summary":"invalid beside facts","facts":[{"summary":"lab observation"}]}`},
+			{Type: llm.SEMessageDelta, StopReason: "tool_use"},
+		} {
+			if !yield(event, nil) {
+				return
+			}
+		}
+	}}
+	worker := NewWorker(provider, "fixture", t.TempDir(), nil, 0, 10)
+	_, writes, err := worker.Execute(t.Context(), "worker", 0, nil, store, &db.Node{ID: intentID, Payload: rawIntent}, nil, nil, nil, nil)
+	if err != AbortRepeatedRecordFactRefusal {
+		t.Fatalf("worker error=%v, want refusal limit", err)
+	}
+	if got := calls.Load(); got != maxConsecutiveRecordFactRefusals || writes.Facts != 0 {
+		t.Fatalf("worker made %d provider calls and wrote %+v, want %d calls and no facts", got, writes, maxConsecutiveRecordFactRefusals)
 	}
 }
