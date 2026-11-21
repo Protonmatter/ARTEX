@@ -26,15 +26,9 @@ func callReadJSON(t *testing.T, tool actool.CoreTool, input string) any {
 }
 
 func TestGraphOverviewExpandsAssociatedCompanyScope(t *testing.T) {
-	// Known failure with a freshly seeded database. Repro:
+	// Fresh-database regression. Repro:
 	//   RECONRIVET_PG_DSN=postgres://reconrivet:testpass@localhost:5432/reconrivettest_agent \
 	//     go test ./agent -run TestGraphOverviewExpandsAssociatedCompanyScope -count=1 -v
-	// On a fresh DB the company-scope expansion in graphOverviewData is not
-	// visible to the task: the t.Fatalf checks after QueryByTask and
-	// graphOverviewData (company asset linkage, company_scope rows and
-	// company_keywords) fail. Keep the skip until seeding is ordered correctly;
-	// do not delete it.
-	t.Skip("known failure with a fresh database; repro and failing assertions documented above")
 	d := testDB(t)
 	defer d.Close()
 

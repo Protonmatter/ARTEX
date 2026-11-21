@@ -54,6 +54,7 @@ Examples below use current naming; Git history retains the original release text
 
 ### Fixed
 
+- **Windows static builds**: `npm run build:static` now sets export mode from a Node launcher, so the same command works in PowerShell and POSIX shells without an extra dependency.
 - **Task creation account reset**: after a task is created, the form clears its test accounts along with its other fields. Editable account rows keep stable local identities when an earlier row is removed.
 - **System Settings mock status**: the demo returns a complete target-noise status, and the card rejects an incomplete response with an error instead of crashing the page.
 - **Static navigation payloads**: the static export writes flat aliases for Next.js route-segment payloads so client navigation can load them from ordinary file servers and the embedded UI.
